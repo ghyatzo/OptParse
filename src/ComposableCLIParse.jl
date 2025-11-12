@@ -58,9 +58,7 @@ function map_err(f, ::Type{E}, x::Result{O})::Result{O, E} where {O, E}
 	return Result{O, E}(data isa Ok ? Ok(data.x) : Err(f(data.x)))
 end
 
-
-
-
+export option, flag, argparse, stringval
 
 
 include("parser.jl")
@@ -82,35 +80,42 @@ include("primitives.jl")
 
 #####
 # entry point
-function parse(parser::Parser{T, TState}, args::Vector{String})::Result{T, String} where {T, TState}
+function argparse(parser::Parser{T, S}, args::Vector{String})::Result{T, String} where {T, S}
 
-	context = ParserContext(
-		args,
-		parser.initialState,
-		false
-	)
+	state = ArgState(args, parser.initialState)
 
 	while true
-		mayberesult = parse(parser, context)::ParserResult{TState}
+		mayberesult::ParseResult{S, String} = parser.parse(state)
 
 		is_error(mayberesult) && return Err(unwrap_error(mayberesult).error)
 		result = ErrorTypes.unwrap(mayberesult)
 
-		previous_buffer = context.buffer
-		context = result.next
+		previous_buffer = state.buffer
+		state = result.next
 
-		if ( length(context.buffer) > 0 &&
-			 length(context.buffer) == length(previous_buffer) &&
-			 context.buffer[0] === previous_buffer[0])
+		if ( length(state.buffer) > 0 &&
+			 length(state.buffer) == length(previous_buffer) &&
+			 state.buffer[0] === previous_buffer[0])
 
-			return Err("Unexpected option or argument: $(context.buffer[0]).")
+			return Err("Unexpected option or argument: $(state.buffer[0]).")
 		end
 
-		length(context.buffer) > 0 || break
+		length(state.buffer) > 0 || break
 	end
 
-	endResult = complete(parser, context.state)
+	endResult = parser.complete(state)
 end
 
+macro comment(_...) end
+
+@comment begin
+	args = ["--host", "me", "--verbose"]
+
+	opt = option(["--host"], stringval(;metavar = "HOST"))
+	flg = flag(["--verbose"])
+
+	@show argparse(opt, args)
+	@show argparse(flg, args)
+end
 
 end # module ComposableCLIParse

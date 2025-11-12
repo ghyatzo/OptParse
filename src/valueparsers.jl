@@ -25,11 +25,11 @@ end
 end
 
 (c::Choice)(input::String)::Result{String, String} = let
-	norminput = x.caseInsensitive ? lowercase(input) : input
-	index = findfirst(==(norminput), x.values)
+	norminput = c.caseInsensitive ? lowercase(input) : input
+	index = findfirst(==(norminput), c.values)
 
-	isnothing(index) && return Err("Expected of of $(join(x.values, ',')), but got $input")
-	return Ok(x.values[index])
+	isnothing(index) && return Err("Expected of of $(join(c.values, ',')), but got $input")
+	return Ok(c.values[index])
 end
 
 
@@ -46,5 +46,5 @@ hasvalue(v::ValueParser) = WrappedUnions.unwrap(v) !== nothing
 parse(x::ValueParser, input::Base.String)::Result = @unionsplit parse(x, input)
 
 
-valstring(;kw...) = ValueParser{String}(StringVal(;kw...))
+stringval(;kw...) = ValueParser{String}(StringVal(;kw...))
 choice(;kw...) = ValueParser{String}(Choice(;kw...))

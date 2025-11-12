@@ -1,33 +1,64 @@
 
-struct ParserContext{T}
+struct ArgState{S}
 	buffer::Vector{String}
-	state::T
+	state::S # accumulator for partial states (eg named tuple)
 	optionsTerminated::Bool
 end
 
+ArgState(args::Vector{String}, acc) = ArgState{typeof(acc)}(args, acc, false)
 
-struct ParserSuccess{T}
+struct ParseSuccess{S}
 	consumed::Vector{String}
-	next::ParserContext{T}
+	next::ArgState{S}
 end
 
-struct ParserFailure
-	consumed::Integer
-	error::String
+
+struct ParseFailure{E}
+	consumed::Int
+	error::E
 end
 
-const ParserResult{T} = Result{ParserSuccess{T}, ParserFailure}
-# parser interface,
-# all objects and funciton will always return a parser!
-# struct _Parser{TValue, TState}
-# 	priority::Integer
-# 	initialState::TState
+const ParseResult{S, E} = Result{ParseSuccess{S}, ParseFailure{E}}
 
-# 	# ... extra stuff
+struct Parser{T, S}
+	priority::Int
+	initialState::S
+	parse::Function # (S) -> ParseResult{S, String}
+	complete::Function # (S) -> Result{T, String}
+end
+
+Parser{T}(priority, init, parse, complete) where {T} = Parser{T, typeof(init)}(priority, init, parse, complete)
+
+
+# struct ParserContext{T}
+# 	buffer::Vector{String}
+# 	state::T
+# 	optionsTerminated::Bool
 # end
 
-# function parse end # ParserContext -> ::Result{ParseSuccess, ParseFailure}
 
-# function complete end # TState -> ::Result{TValue, ValueFailure}
+# struct ParserSuccess{T}
+# 	consumed::Vector{String}
+# 	next::ParserContext{T}
+# end
 
-# function gethelp end
+# struct ParserFailure
+# 	consumed::Integer
+# 	error::String
+# end
+
+# const ParserResult{T} = Result{ParserSuccess{T}, ParserFailure}
+# # parser interface,
+# # all objects and funciton will always return a parser!
+# # struct _Parser{TValue, TState}
+# # 	priority::Integer
+# # 	initialState::TState
+
+# # 	# ... extra stuff
+# # end
+
+# # function parse end # ParserContext -> ::Result{ParseSuccess, ParseFailure}
+
+# # function complete end # TState -> ::Result{TValue, ValueFailure}
+
+# # function gethelp end
