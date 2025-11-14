@@ -8,7 +8,7 @@ end
 Context(args::Vector{String}, state) = Context{typeof(state)}(args, state, false)
 
 struct ParseSuccess{S}
-	consumed::Vector{String}
+	consumed::Tuple{Vararg{String}}
 	next::Context{S}
 end
 

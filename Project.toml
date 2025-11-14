@@ -7,11 +7,17 @@ authors = ["ghyatzo <camillo.schenone@jasco.com>"]
 projects = ["test"]
 
 [deps]
+Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
+Cthulhu = "f68482b8-f384-11e8-15f7-abe071a5a75f"
 ErrorTypes = "7f495686-c6d2-4c77-9e8e-e4c865675f9d"
+Infiltrator = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 WrappedUnions = "325db55a-9c6c-5b90-b1a2-ec87e7a38c44"
 
 [compat]
+Accessors = "0.1.42"
+Cthulhu = "2.17.10"
 ErrorTypes = "0.5.2"
+Infiltrator = "1.9.4"
 JET = "0.11.0"
 WrappedUnions = "0.3.3"

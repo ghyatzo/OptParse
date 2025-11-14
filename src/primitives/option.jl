@@ -1,0 +1,102 @@
+
+# options with values: -o 123 / --option value
+struct ArgOption{T, S, p, P}
+	initialState::S
+	_dummy::P
+	#
+	valparser::ValueParser{T}
+	names::Vector{String}
+	description::String
+
+
+	ArgOption(names::Vector{String}, valparser::ValueParser{T}; description = "") where {T} =
+		new{T, Result{T, String}, 10, Nothing}(Err("Missing Option(s) $(names)."), nothing, valparser, names, description)
+end
+
+
+function parse(p::ArgOption{T, S}, ctx::Context{S})::ParseResult{S, String} where {T, S <: Result{T, String}}
+	if ctx.optionsTerminated
+		return Err(ParseFailure(0, "No more options to be parsed."))
+	elseif length(ctx.buffer) < 1
+		return Err(ParseFailure(0, "Expected option got end of input."))
+	end
+
+	# When the input contains `--` is a signal to stop parsing options
+	if (ctx.buffer[1] === "--")
+		next = Context(ctx.buffer[2:end], ctx.state, true)
+		return Ok(ParseSuccess(Tuple(ctx.buffer[1:1]), next))
+	end
+
+	# when options are of the form `--option value` or `/O value`
+	if ctx.buffer[1] in p.names
+
+		# st = @? ctx.state
+		if !is_error(ctx.state) && unwrap(ctx.state) isa T
+			return Err(ParseFailure(1, "$(ctx.buffer[1]) cannot be used multiple times"))
+		end
+
+		if length(ctx.buffer) < 2
+			return Err(
+				ParseFailure(
+					1, "Option $(ctx.buffer[1]) requires a value, but got no value."
+				)
+			)
+		end
+
+		result = @unionsplit p.valparser(ctx.buffer[2])
+
+		return Ok(
+			ParseSuccess(
+				Tuple(ctx.buffer[1:2]),
+
+				Context(
+					ctx.buffer[3:end],
+					result,
+					ctx.optionsTerminated
+				)
+			)
+		)
+	end
+
+	# when options are of the form `--option=value` or `/O:value`
+	prefixes = filter(p.names) do name
+		startswith(name, "--") || startswith(name, "/")
+	end
+	map!(prefixes) do name
+		startswith(name, "/") ? "$name:" : "$name="
+	end
+	for prefix in prefixes
+		startswith(ctx.buffer[1], prefix) || continue
+
+		if !is_error(ctx.state) && unwrap(ctx.state)
+			return Err(ParseFailure(1, "$(prefix[1:end-1]) cannot be used multiple times"))
+		end
+
+		value = ctx.buffer[1][length(prefix)+1:end]
+		result = @unionsplit p.valparser(value)
+
+		return Ok(
+			ParseSuccess(
+				Tuple(ctx.buffer[1:2]),
+
+				Context(
+					ctx.buffer[3:end],
+					result,
+					ctx.optionsTerminated
+				)
+			)
+		)
+
+	end
+
+	return Err(ParseFailure(
+		0, "No Matched option for $(ctx.buffer[1])"
+	))
+end
+
+function complete(p::ArgOption{T}, st::Result{T, String})::Result{T, String} where {T}
+	!is_error(st) && return st
+	error = unwrap_error(st)
+	return Err("$(p.names): $error")
+end
+

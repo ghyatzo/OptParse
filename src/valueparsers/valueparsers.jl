@@ -25,13 +25,13 @@ end
 	caseInsensitive::Bool = true
 	values::Vector{String}
 
-	Choice(metavar, caseInsensitive, values::Vector{String}) = let
+	Choice(metavar, caseInsensitive, values) = let
 		normvals = caseInsensitive ? map(lowercase, values) : values
 		new(metavar, caseInsensitive, normvals)
 	end
 end
 
-(c::Choice)(input::String)::Result{String, String} = let
+(c::Choice)(input::String)::Result{String, String}= let
 	norminput = c.caseInsensitive ? lowercase(input) : input
 	index = findfirst(==(norminput), c.values)
 
@@ -48,7 +48,7 @@ end
 	}
 end
 
-parse(x::ValueParser, input::Base.String)::Result = @unionsplit parse(x, input)
+(parse(x::ValueParser{T}, input::String)::Result{T, String}) where {T} = @unionsplit parse(x, input)
 
 
 stringval(;kw...) = ValueParser{String}(StringVal(;kw...))
