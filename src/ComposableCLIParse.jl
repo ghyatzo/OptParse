@@ -63,6 +63,7 @@ export  argparse,
 	# valueparsers
 	stringval,
 	choice,
+	integer,
 
 	# constructors
 	object,

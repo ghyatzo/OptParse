@@ -9,7 +9,7 @@
 # function format end # T -> String
 
 
-@kwdef struct StringVal
+@kwdef struct StringVal{T}
 	metavar::String = "STRING"
 	pattern::Regex = r".*"
 end
@@ -20,14 +20,14 @@ end
 	return Ok(input)
 end
 
-@kwdef struct Choice
+@kwdef struct Choice{T}
 	metavar::String = "CHOICE"
 	caseInsensitive::Bool = true
-	values::Vector{String}
+	values::Vector{T}
 
-	Choice(metavar, caseInsensitive, values) = let
+	Choice(metavar, caseInsensitive, values::Vector{T}) where {T} = let
 		normvals = caseInsensitive ? map(lowercase, values) : values
-		new(metavar, caseInsensitive, normvals)
+		new{T}(metavar, caseInsensitive, normvals)
 	end
 end
 
@@ -39,17 +39,39 @@ end
 	return Ok(c.values[index])
 end
 
+@kwdef struct IntegerVal{T}
+	metaval::String = "INTEGER"
+	#
+	type::Type = T
+	min::Union{Int, Nothing} = nothing
+	max::Union{Int, Nothing} = nothing
+end
+((iv::IntegerVal{T})(input::String)::Result{T, String}) where {T} = let
+	val = tryparse(T, input)
+	if isnothing(val)
+		return Err("Expected valid integer, got $input")
+	end
+
+	(!isnothing(iv.min) && val < iv.min) && return Err("Value $input is below the minimum: $(iv.min)")
+	(!isnothing(iv.max) && val > iv.max) && return Err("Value $input is above the maximum: $(iv.max)")
+
+	return Ok(val)
+end
+
 
 @wrapped struct ValueParser{T}
 	union::Union{
-		StringVal,
-		Choice,
-		Nothing
+		StringVal{T},
+		IntegerVal{T},
+		Choice{T}
 	}
 end
 
 (parse(x::ValueParser{T}, input::String)::Result{T, String}) where {T} = @unionsplit parse(x, input)
+((v::ValueParser{T})(input::String)::Result{T, String}) where {T} = @unionsplit v(input)
 
 
-stringval(;kw...) = ValueParser{String}(StringVal(;kw...))
-choice(;kw...) = ValueParser{String}(Choice(;kw...))
+stringval(;kw...) = ValueParser{String}(StringVal{String}(;kw...))
+choice(values::Vector{T};kw...) where {T} = ValueParser{T}(Choice(;values, kw...))
+integer(::Type{T}; kw...) where {T} = ValueParser{T}(IntegerVal{T}(;type=T, kw...))
+integer(;kw...) = ValueParser{Int}(IntegerVal{Int}(;kw...))

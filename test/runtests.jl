@@ -23,6 +23,16 @@ using JET
 		@test_opt ch("world")
 	end
 
+	@testset "IntegerVal" begin
+		iv = integer(Int32, min=10, max = 20)
+		@test (@? iv("13")) == Int32(13)
+		err = iv("3")
+		@test is_error(err) && occursin("minimum", unwrap_error(err))
+		err = iv("222")
+		@test is_error(err) && occursin("maximum", unwrap_error(err))
+
+		@test_opt iv("15")
+	end
 
 end
 
@@ -148,4 +158,117 @@ end
 	    end
 	end
 
+	@testset "option parser" begin
+	    @testset "should parse option with separated value" begin
+	        parser  = option(["-p", "--port"], integer())
+	        context = Context(["--port", "8080"], parser.initialState)
+
+	        res = @unionsplit parse(parser, context)  # :: ParseResult
+
+	        @test !is_error(res)  # success
+	        ps = unwrap(res)      # :: ParseSuccess
+
+	        # next.state should itself be a successful value (Result/Option)
+	        @test !is_error(ps.next.state)
+	        @test unwrap(ps.next.state) == 8080
+
+	        @test ps.next.buffer == String[]  # buffer consumed
+	        @test ps.consumed == ("--port", "8080")  # tuple, not Vector
+	    end
+
+	    @testset "should parse option with equals-separated value" begin
+	        parser  = option(["--port"], integer())
+	        context = Context(["--port=8080"], parser.initialState)
+
+	        res = @unionsplit parse(parser, context)
+
+	        @test !is_error(res)
+	        ps = unwrap(res)
+
+	        @test !is_error(ps.next.state)
+	        @test unwrap(ps.next.state) == 8080
+
+	        @test ps.next.buffer == String[]
+	        @test ps.consumed == ("--port=8080",)
+	    end
+
+	    # @testset "should parse DOS-style option with colon" begin
+	    #     parser  = option("/P", integer())
+	    #     context = Context(["/P:8080"], parser.initialState)
+
+	    #     res = @unionsplit parse(parser, context)
+
+	    #     @test !is_error(res)
+	    #     ps = unwrap(res)
+
+	    #     @test !is_error(ps.next.state)
+	    #     @test unwrap(ps.next.state) == 8080
+	    #     # TS test does not check buffer/consumed here
+	    # end
+
+	    @testset "should fail when value is missing" begin
+	        parser  = option(["--port"], integer())
+	        context = Context(["--port"], parser.initialState)
+
+	        res = @unionsplit parse(parser, context)
+
+	        @test is_error(res)  # failure
+	        pf = unwrap_error(res)  # :: ParseFailure
+
+	        @test pf.consumed == 1
+	        @test occursin("requires a value", string(pf.error))
+	    end
+
+	    @testset "should parse string values" begin
+	        parser  = option(["--name"], stringval(; metavar = "NAME"))
+	        context = Context(["--name", "Alice"], parser.initialState)
+
+	        res = @unionsplit parse(parser, context)
+
+	        @test !is_error(res)
+	        ps = unwrap(res)
+
+	        @test !is_error(ps.next.state)
+	        @test unwrap(ps.next.state) == "Alice"
+	    end
+
+	    @testset "should propagate value parser failures" begin
+	        parser  = option(["--port"], integer(; min = 1, max = 0xffff))
+	        context = Context(["--port", "invalid"], parser.initialState)
+
+	        res = @unionsplit parse(parser, context)
+
+	        # Option itself matched, so overall parse succeeds...
+	        @test !is_error(res)
+	        ps = unwrap(res)
+
+	        # ...but the inner value parser failed (carry failure in state)
+	        @test is_error(ps.next.state)
+	        # If you want to assert the specific inner error message:
+	        # @test occursin("invalid", string(unwrap_error(ps.next.state)))
+	    end
+
+	    @testset "should fail on unmatched option" begin
+	        parser  = option(["-v", "--verbose"], choice(["yes", "no"]))
+	        context = Context(["--help"], parser.initialState)
+
+	        res = @unionsplit parse(parser, context)
+
+	        @test is_error(res)
+	        pf = unwrap_error(res)
+
+	        @test pf.consumed == 0
+	        @test occursin("No Matched", string(pf.error))
+	    end
+
+	    @testset "should be type stable" begin
+	    	@test_opt option(["--port"], integer())
+	    	parser = option(["--port"], integer())
+
+	    	context = Context(["--port", "8080"], parser.initialState, false)
+
+	    	_p(par, ctx) = @unionsplit parse(par, ctx)
+	    	@test_opt _p(parser, context)
+	    end
+	end
 end
