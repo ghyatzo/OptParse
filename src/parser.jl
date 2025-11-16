@@ -1,23 +1,22 @@
-
 struct Context{S}
-	buffer::Vector{String}
-	state::S # accumulator for partial states (eg named tuple)
-	optionsTerminated::Bool
+    buffer::Vector{String}
+    state::S # accumulator for partial states (eg named tuple)
+    optionsTerminated::Bool
 end
 
 Context(args::Vector{String}, state) = Context{typeof(state)}(args, state, false)
 
 struct ParseSuccess{S}
-	consumed::Tuple{Vararg{String}}
-	next::Context{S}
+    consumed::Tuple{Vararg{String}}
+    next::Context{S}
 end
 
 ParseSuccess(cons::Vector{String}, next) = ParseSuccess((cons...), next)
 ParseSuccess(cons::String, next) = ParseSuccess((cons,), next)
 
 struct ParseFailure{E}
-	consumed::Int
-	error::E
+    consumed::Int
+    error::E
 end
 
 const ParseResult{S, E} = Result{ParseSuccess{S}, ParseFailure{E}}
