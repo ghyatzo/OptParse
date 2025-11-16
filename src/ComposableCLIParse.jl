@@ -105,8 +105,8 @@ tval(::Type{Parser{T, S, p, P}}) where {T, S, p, P} = T
 tstate(::Type{Parser{T, S, p, P}}) where {T, S, p, P} = S
 
 Base.getproperty(p::Parser, f::Symbol) = @unionsplit Base.getproperty(p, f)
-
-# complete(p::Parser, st) = @unionsplit complete(p, st)
+parse(p::Parser, ctx::Context) = @unionsplit parse(p, ctx)
+complete(p::Parser, st) = @unionsplit complete(p, st)
 
 # primitives
 option(names::Vector{String}, valparser::ValueParser{T}; kw...) where {T} = parser(ArgOption(names, valparser; kw...))
@@ -129,7 +129,7 @@ function argparse(pp::Parser{T, S, p}, args::Vector{String})::Result{T, String} 
     ctx = Context(args, pp.initialState)
 
     while true
-        mayberesult::ParseResult{S, String} = @unionsplit parse(pp, ctx)
+        mayberesult::ParseResult{S, String} = parse(pp, ctx)
         #=
 			There is currently an issue. We need a mechanism to allow bypassing this check
 			To allow for potential "fixable" errors (think optional) to pass through to the
@@ -156,7 +156,7 @@ function argparse(pp::Parser{T, S, p}, args::Vector{String})::Result{T, String} 
         length(ctx.buffer) > 0 || break
     end
 
-    return endResult = @unionsplit complete(pp, ctx.state)
+    return endResult = complete(pp, ctx.state)
 end
 
 macro comment(_...) end

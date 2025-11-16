@@ -8,7 +8,7 @@ end
 
 
 function parse(p::ModOptional{T, S}, ctx::Context)::ParseResult{S, String} where {T, S}
-    result = (@unionsplit parse(p.parser, ctx))::ParseResult{S, String}
+    result = parse(p.parser, ctx)::ParseResult{S, String}
 
     if !is_error(result)
         parse_ok = unwrap(result)
@@ -21,7 +21,7 @@ end
 function complete(p::ModOptional{T, S, _p, P}, st::S)::Result{T, String} where {T, S, _p, P}
     is_error(st) && return Ok(none(tval(P)))
 
-    result = (@unionsplit complete(p.parser, st))::Result{tval(P), String}
+    result = complete(p.parser, st)::Result{tval(P), String}
 
     if !is_error(result)
         return Ok(some(unwrap(result)))
@@ -30,5 +30,3 @@ function complete(p::ModOptional{T, S, _p, P}, st::S)::Result{T, String} where {
     end
 
 end
-
-

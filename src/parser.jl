@@ -4,7 +4,9 @@ struct Context{S}
     optionsTerminated::Bool
 end
 
-Context(args::Vector{String}, state) = Context{typeof(state)}(args, state, false)
+Context(args::Vector{String}, state) =
+    Context{typeof(state)}(args, state, false)
+
 
 struct ParseSuccess{S}
     consumed::Tuple{Vararg{String}}
@@ -21,5 +23,7 @@ end
 
 const ParseResult{S, E} = Result{ParseSuccess{S}, ParseFailure{E}}
 
-ParseOk(consumed, next::Context{S}) where {S} = Ok(ParseSuccess(consumed, next))
-ParseErr(consumed, error) = Err(ParseFailure(consumed, error))
+ParseOk(consumed, next::Context{S}) where {S} =
+    Ok(ParseSuccess(consumed, next))
+ParseErr(consumed, error) =
+    Err(ParseFailure(consumed, error))

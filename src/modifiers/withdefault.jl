@@ -13,7 +13,7 @@ struct ModWithDefault{T, S, p, P}
 end
 
 function parse(p::ModWithDefault{T, S}, ctx::Context)::ParseResult{S, String} where {T, S}
-    result = (@unionsplit parse(p.parser, ctx))::ParseResult{S, String}
+    result = parse(p.parser, ctx)::ParseResult{S, String}
 
     if !is_error(result)
         parse_ok = unwrap(result)
@@ -24,5 +24,5 @@ function parse(p::ModWithDefault{T, S}, ctx::Context)::ParseResult{S, String} wh
 end
 
 function complete(p::ModWithDefault{T, S}, st::S)::Result{T, String} where {T, S}
-    return is_error(st) ? Ok(p.default) : @unionsplit complete(p.parser, st)
+    return is_error(st) ? Ok(p.default) : complete(p.parser, st)
 end

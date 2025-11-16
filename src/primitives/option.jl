@@ -23,7 +23,7 @@ function parse(p::ArgOption{T, S}, ctx::Context{S})::ParseResult{S, String} wher
     # When the input contains `--` is a signal to stop parsing options
     if (ctx.buffer[1] === "--")
         next = Context(ctx.buffer[2:end], ctx.state, true)
-        return ParseOk(Tuple(ctx.buffer[1:1]), next)
+        return ParseOk(ctx.buffer[1:1], next)
     end
 
     # when options are of the form `--option value` or `/O value`
@@ -31,28 +31,24 @@ function parse(p::ArgOption{T, S}, ctx::Context{S})::ParseResult{S, String} wher
 
         # st = @? ctx.state
         if !is_error(ctx.state) && unwrap(ctx.state) isa T
-            return Err(ParseFailure(1, "$(ctx.buffer[1]) cannot be used multiple times"))
+            return ParseErr(1, "$(ctx.buffer[1]) cannot be used multiple times")
         end
 
         if length(ctx.buffer) < 2
-            return Err(
-                ParseFailure(
-                    1, "Option $(ctx.buffer[1]) requires a value, but got no value."
-                )
-            )
+            return ParseErr(1, "Option $(ctx.buffer[1]) requires a value, but got no value.")
         end
 
-        result = @unionsplit p.valparser(ctx.buffer[2])
+        result = p.valparser(ctx.buffer[2])
 
         return ParseOk(
-                Tuple(ctx.buffer[1:2]),
+            ctx.buffer[1:2],
 
-                Context(
-                    ctx.buffer[3:end],
-                    result,
-                    ctx.optionsTerminated
-                )
+            Context(
+                ctx.buffer[3:end],
+                result,
+                ctx.optionsTerminated
             )
+        )
     end
 
     # when options are of the form `--option=value` or `/O:value`
@@ -70,23 +66,23 @@ function parse(p::ArgOption{T, S}, ctx::Context{S})::ParseResult{S, String} wher
         end
 
         value = ctx.buffer[1][(length(prefix) + 1):end]
-        result = @unionsplit p.valparser(value)
+        result = p.valparser(value)
 
         return ParseOk(
-                Tuple(ctx.buffer[1:1]),
+            ctx.buffer[1:1],
 
-                Context(
-                    ctx.buffer[2:end],
-                    result,
-                    ctx.optionsTerminated
-                )
+            Context(
+                ctx.buffer[2:end],
+                result,
+                ctx.optionsTerminated
             )
+        )
 
     end
 
     return ParseErr(
-            0, "No Matched option for $(ctx.buffer[1])"
-        )
+        0, "No Matched option for $(ctx.buffer[1])"
+    )
 end
 
 function complete(p::ArgOption{T}, st::Result{T, String})::Result{T, String} where {T}

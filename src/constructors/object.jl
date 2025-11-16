@@ -78,7 +78,7 @@ _recursive_parse_parsers(p::NamedTuple{labels}, ctx, error, all_consumed, anysuc
 
     child_ctx = @set ctx.state = child_state
 
-    result = (@unionsplit parse(child_parser, child_ctx))::ParseResult{typeof(child_state), String}
+    result = parse(child_parser, child_ctx)::ParseResult{typeof(child_state), String}
 
     if is_error(result)
         parse_err = unwrap_error(result)
@@ -122,10 +122,10 @@ function parse(p::Object{NamedTuple{fields, Tup}, S}, ctx::Context)::ParseResult
 
 
     if anysuccess
-        return ParseOk{S}(
-                allconsumed,
-                current_ctx
-            )
+        return ParseOk(
+            allconsumed,
+            current_ctx
+        )
     end
 
     #= if buffer is empty check if all parsers can complete anyway =#
@@ -141,7 +141,6 @@ function parse(p::Object{NamedTuple{fields, Tup}, S}, ctx::Context)::ParseResult
 end
 
 
-
 _recursive_complete_parsers(::@NamedTuple{}, _, output::NamedTuple) =
     true, output
 _recursive_complete_parsers(p::NamedTuple{labels}, state, output::NamedTuple) where {labels} = let
@@ -149,7 +148,7 @@ _recursive_complete_parsers(p::NamedTuple{labels}, state, output::NamedTuple) wh
     child_state = state[field]
     child_parser = p[field]
 
-    result = (@unionsplit complete(child_parser, child_state))::Result{tval(typeof(child_parser)), String}
+    result = complete(child_parser, child_state)::Result{tval(typeof(child_parser)), String}
     is_error(result) && return false, result
 
     output = insert(output, PropertyLens(field), unwrap(result))

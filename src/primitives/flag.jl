@@ -33,14 +33,14 @@ function parse(p::ArgFlag{Bool, Result{Bool, String}}, ctx::Context{Result{Bool,
         end
 
         return ParseOk(
-                ctx.buffer[1:1],
+            ctx.buffer[1:1],
 
-                Context(
-                    ctx.buffer[2:end],
-                    Result{Bool, String}(Ok(true)),
-                    ctx.optionsTerminated
-                )
+            Context(
+                ctx.buffer[2:end],
+                Result{Bool, String}(Ok(true)),
+                ctx.optionsTerminated
             )
+        )
     end
 
     #= When the input contains bundled options: -abc =#
@@ -56,19 +56,19 @@ function parse(p::ArgFlag{Bool, Result{Bool, String}}, ctx::Context{Result{Bool,
         end
 
         return ParseOk(
-                ctx.buffer[1][1:2],
+            ctx.buffer[1][1:2],
 
-                Context(
-                    ["-$(ctx.buffer[1][3:end])", ctx.buffer[2:end]...],
-                    Result{Bool, String}(Ok(true)),
-                    ctx.optionsTerminated
-                )
+            Context(
+                ["-$(ctx.buffer[1][3:end])", ctx.buffer[2:end]...],
+                Result{Bool, String}(Ok(true)),
+                ctx.optionsTerminated
             )
+        )
     end
 
     return ParseErr(
-            0, "No Matched Flag for $(ctx.buffer[1])"
-        )
+        0, "No Matched Flag for $(ctx.buffer[1])"
+    )
 end
 
 function complete(p::ArgFlag, st::Result{Bool, String})::Result{Bool, String}
