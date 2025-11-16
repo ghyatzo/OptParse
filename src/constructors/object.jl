@@ -67,70 +67,118 @@ end
 # _test(::Tuple{}, cx, v) = cx
 # _test(a, cx, ::Tuple{}) = cx
 
-_recursive_parse_parsers(::@NamedTuple{}, ctx, error, all_consumed, anysuccess) =
-    return ctx, error, all_consumed, false, anysuccess
+# @inline _recursive_parse_parsers(::@NamedTuple{}, ctx, error, all_consumed, anysuccess) =
+#     return ctx, error, all_consumed, false, anysuccess
 
-_recursive_parse_parsers(p::NamedTuple{labels}, ctx, error, all_consumed, anysuccess) where {labels} = let
+# @inline _recursive_parse_parsers(p::NamedTuple{labels}, ctx, error, all_consumed, anysuccess) where {labels} = let
+#     Base.@assume_effects :foldable
+#     # Main.@infiltrate
+#     field = first(labels)
+#     child_state = ctx.state[field]
+#     child_parser = p[field]
 
-    field = first(labels)
-    child_state = ctx.state[field]
-    child_parser = p[field]
+#     child_ctx = @set ctx.state = child_state
 
-    child_ctx = @set ctx.state = child_state
+#     result = parse(child_parser, child_ctx)::ParseResult{typeof(child_state), String}
 
-    result = parse(child_parser, child_ctx)::ParseResult{typeof(child_state), String}
+#     if is_error(result)
+#         parse_err = unwrap_error(result)
+#         if error.consumed <= parse_err.consumed
+#             error = parse_err
+#         end
+#     else
+#         parse_ok = unwrap(result)
+#         if length(parse_ok.consumed) > 0
+#             newstate = set(ctx.state, PropertyLens(field), parse_ok.next.state)
 
-    if is_error(result)
-        parse_err = unwrap_error(result)
-        if error.consumed <= parse_err.consumed
-            error = parse_err
-        end
-    else
-        parse_ok = unwrap(result)
-        if length(parse_ok.consumed) > 0
-            newstate = set(ctx.state, PropertyLens(field), parse_ok.next.state)
+#             newctx = Context(
+#                 parse_ok.next.buffer,
+#                 newstate,
+#                 ctx.optionsTerminated
+#             )
 
-            newctx = Context(
-                parse_ok.next.buffer,
-                newstate,
-                ctx.optionsTerminated
-            )
+#             all_consumed = (all_consumed..., parse_ok.consumed...)
 
-            all_consumed = (all_consumed..., parse_ok.consumed...)
+#             return newctx, error, all_consumed, true, true
+#         end
+#     end
 
-            return newctx, error, all_consumed, true, true
-        end
+#     return _recursive_parse_parsers(Base.tail(p), ctx, error, all_consumed, anysuccess)
+# end
+
+@generated function _generated_parse_parsers(p::NamedTuple{labels}, ctx::Context) where {labels}
+
+
+    whilebody = Expr(:block)
+    for (i, field) in enumerate(labels)
+        push!(whilebody.args, quote
+            child_state = current_ctx.state[$(QuoteNode(field))]
+            child_parser = p[$(QuoteNode(field))]
+            child_ctx = @set ctx.state = child_state
+
+            result = parse(child_parser, child_ctx)::ParseResult{typeof(child_state), String}
+
+            if is_error(result)
+                parse_err = unwrap_error(result)
+                if error.consumed <= parse_err.consumed
+                    error= parse_err
+                end
+            else
+                parse_ok = unwrap(result)
+                if length(parse_ok.consumed) > 0
+                    newstate = set(ctx.state, PropertyLens($(QuoteNode(field))), parse_ok.next.state)
+
+                    newctx = Context(
+                        parse_ok.next.buffer,
+                        newstate,
+                        ctx.optionsTerminated
+                    )
+
+                    allconsumed = (allconsumed..., parse_ok.consumed...)
+                    current_ctx = newctx
+                    madeprogress = true
+                    anysuccess = true
+                    @goto startwhile
+                end
+            end
+        end)
     end
 
-    return _recursive_parse_parsers(Base.tail(p), ctx, error, all_consumed, anysuccess)
+    ex = quote
+        error = ParseFailure(0, "Expected argument, option or command, but got end of input.")
+
+        #= greedy parsing trying to consume as many field as possible =#
+        anysuccess = false
+        allconsumed::Tuple{Vararg{String}} = ()
+
+        #= keep trying to parse fields until no more can be matched =#
+        current_ctx = ctx
+        madeprogress = true
+        @label startwhile
+        while (madeprogress && length(current_ctx.buffer) > 0)
+            madeprogress = false
+
+            $whilebody
+        end
+
+        return current_ctx, error, allconsumed, anysuccess
+    end
 end
 
 function parse(p::Object{NamedTuple{fields, Tup}, S}, ctx::Context)::ParseResult{S, String} where {fields, Tup, S}
-    error = ParseFailure(0, "Expected argument, option or command, but got end of input.")
 
-    #= greedy parsing trying to consume as many field as possible =#
-    anysuccess = false
-    allconsumed::Tuple{Vararg{String}} = ()
-
-    #= keep trying to parse fields until no more can be matched =#
-    current_ctx = ctx
-    made_progress = true
-    while (made_progress && length(ctx.buffer) > 0)
-        # @infiltrate
-        current_ctx, error, allconsumed, made_progress, anysuccess = _recursive_parse_parsers(p.parsers, current_ctx, error, allconsumed, anysuccess)
-    end
-
+    outctx, error, allconsumed, anysuccess = _generated_parse_parsers(p.parsers, ctx)
 
     if anysuccess
         return ParseOk(
             allconsumed,
-            current_ctx
+            outctx
         )
     end
 
     #= if buffer is empty check if all parsers can complete anyway =#
     if length(ctx.buffer) == 0
-        all_can_complete, _ = _recursive_complete_parsers(p.parsers, ctx.state, (;))
+        all_can_complete, _ = _generated_complete_parsers(p.parsers, ctx.state)
 
         if all_can_complete
             return ParseOk((), ctx)
@@ -140,24 +188,95 @@ function parse(p::Object{NamedTuple{fields, Tup}, S}, ctx::Context)::ParseResult
     return Err(error)
 end
 
+# function _parse(p::Object{NamedTuple{fields, Tup}, S}, ctx::Context)::ParseResult{S, String} where {fields, Tup, S}
+#     error = ParseFailure(0, "Expected argument, option or command, but got end of input.")
 
-_recursive_complete_parsers(::@NamedTuple{}, _, output::NamedTuple) =
-    true, output
-_recursive_complete_parsers(p::NamedTuple{labels}, state, output::NamedTuple) where {labels} = let
-    field = first(labels)
-    child_state = state[field]
-    child_parser = p[field]
+#     #= greedy parsing trying to consume as many field as possible =#
+#     anysuccess = false
+#     allconsumed::Tuple{Vararg{String}} = ()
 
-    result = complete(child_parser, child_state)::Result{tval(typeof(child_parser)), String}
-    is_error(result) && return false, result
+#     #= keep trying to parse fields until no more can be matched =#
+#     current_ctx = ctx
+#     made_progress = true
+#     while (made_progress && length(current_ctx.buffer) > 0)
+#         # @infiltrate
+#         current_ctx, error, allconsumed, made_progress, anysuccess = _recursive_parse_parsers(p.parsers, current_ctx, error, allconsumed, anysuccess)
+#     end
 
-    output = insert(output, PropertyLens(field), unwrap(result))
 
-    return _recursive_complete_parsers(Base.tail(p), state, output)
+#     if anysuccess
+#         return ParseOk(
+#             allconsumed,
+#             current_ctx
+#         )
+#     end
+
+#     #= if buffer is empty check if all parsers can complete anyway =#
+#     if length(ctx.buffer) == 0
+#         all_can_complete, _ = _recursive_complete_parsers(p.parsers, ctx.state, (;))
+
+#         if all_can_complete
+#             return ParseOk((), ctx)
+#         end
+#     end
+
+#     return Err(error)
+# end
+
+
+# @inline _recursive_complete_parsers(::@NamedTuple{}, _, output::NamedTuple) =
+#     true, output
+# @inline _recursive_complete_parsers(p::NamedTuple{labels}, state, output::NamedTuple) where {labels} = let
+#     Base.@assume_effects :foldable
+
+#     field = first(labels)
+#     child_state = state[field]
+#     child_parser = p[field]
+
+#     result = complete(child_parser, child_state)::Result{tval(typeof(child_parser)), String}
+
+#     if is_error(result)
+#         return false, result
+#     else
+#         output = insert(output, PropertyLens(field), unwrap(result))
+#         return _recursive_complete_parsers(Base.tail(p), state, output)
+#     end
+# end
+
+@generated function _generated_complete_parsers(p::NamedTuple{labels, PTup}, state::NamedTuple{labels, STup}) where {labels, PTup, STup}
+    pre = :(output = (;))
+
+    ex = Expr(:block)
+    Ps = PTup.parameters
+    Ss = STup.parameters
+    for (i, field) in enumerate(labels)
+        T = tval(Ps[i])
+
+        push!(ex.args, quote
+            child_state = state[$(QuoteNode(field))]
+            child_parser = p[$(QuoteNode(field))]
+
+            result = complete(child_parser, child_state)::Result{$T, String}
+            if is_error(result)
+                return false, result
+            else
+                output = insert(output, PropertyLens($(QuoteNode(field))), unwrap(result))
+            end
+        end)
+    end
+
+    post = :(return true, output)
+    return quote
+        $pre
+        $ex
+        $post
+    end
 end
 
+
 function complete(p::Object{T}, st::NamedTuple)::Result{T, String} where {T}
-    cancomplete, _result = _recursive_complete_parsers(p.parsers, st, (;))
+
+    cancomplete, _result = _generated_complete_parsers(p.parsers, st)
 
     if !cancomplete
         return Err(unwrap_error(_result))
