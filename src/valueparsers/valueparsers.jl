@@ -71,7 +71,7 @@ end
 ((v::ValueParser{T})(input::String)::Result{T, String}) where {T} = @unionsplit v(input)
 
 
-stringval(;kw...) = ValueParser{String}(StringVal{String}(;kw...))
+str(;kw...) = ValueParser{String}(StringVal{String}(;kw...))
 choice(values::Vector{T};kw...) where {T} = ValueParser{T}(Choice(;values, kw...))
 integer(::Type{T}; kw...) where {T} = ValueParser{T}(IntegerVal{T}(;type=T, kw...))
 integer(;kw...) = ValueParser{Int}(IntegerVal{Int}(;kw...))

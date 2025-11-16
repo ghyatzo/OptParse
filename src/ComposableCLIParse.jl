@@ -61,7 +61,7 @@ export  argparse,
 	flag,
 
 	# valueparsers
-	stringval,
+	str,
 	choice,
 	integer,
 

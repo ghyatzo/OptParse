@@ -9,7 +9,7 @@ using JET
 	using ComposableCLIParse: StringVal, Choice
 
 	@testset "StringVal" begin
-		sval = stringval(metavar = "TEST", pattern = r"^A.*")
+		sval = str(metavar = "TEST", pattern = r"^A.*")
 		@test (@? sval("AAA")) == "AAA"
 		@test is_error(sval("BBB"))
 		@test_opt sval("AAA")
@@ -220,7 +220,7 @@ end
 	    end
 
 	    @testset "should parse string values" begin
-	        parser  = option(["--name"], stringval(; metavar = "NAME"))
+	        parser  = option(["--name"], str(; metavar = "NAME"))
 	        context = Context(["--name", "Alice"], parser.initialState)
 
 	        res = @unionsplit parse(parser, context)
