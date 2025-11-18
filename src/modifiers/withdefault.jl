@@ -4,8 +4,8 @@ struct ModWithDefault{T, S, p, P}
     #
     default::T
 
-    ModWithDefault(parser::P, default::T) where {T, P <: Parser{T}} = let
-        new{T, Option{tstate(P)}, priority(P), P}(none(tstate(P)), parser, default)
+    ModWithDefault(parser::P, default::T) where {T, P} = let
+        new{tval(P), Option{tstate(P)}, priority(P), P}(none(tstate(P)), parser, default)
     end
 end
 
