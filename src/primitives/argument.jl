@@ -1,3 +1,5 @@
+const ArgumentState{X} = Option{Result{X, String}}
+
 struct ArgArgument{T, S, p, P}
     initialState::S
     _dummy::P
@@ -7,10 +9,10 @@ struct ArgArgument{T, S, p, P}
 
 
     ArgArgument(valparser::ValueParser{T}; description = "") where {T} =
-        new{T, Option{Result{T, String}}, 5, Nothing}(none(Result{T, String}), nothing, valparser, description)
+        new{T, ArgumentState{T}, 5, Nothing}(none(Result{T, String}), nothing, valparser, description)
 end
 
-function parse(p::ArgArgument{T, S}, ctx::Context)::ParseResult{S, String} where {T, S}
+function parse(p::ArgArgument{T, ArgumentState{S}}, ctx::Context{ArgumentState{S}})::ParseResult{ArgumentState{S}, String} where {T, S}
     optpattern = r"^--?[a-z0-9-]+$"i
 
     if length(ctx.buffer) < 1
@@ -36,7 +38,7 @@ function parse(p::ArgArgument{T, S}, ctx::Context)::ParseResult{S, String} where
         return ParseErr(i, "The argument `$(metavar(p.valparser))` cannot be used multiple times.")
     end
 
-    result = p.valparser(ctx.buffer[1 + i])
+    result = p.valparser(ctx.buffer[1 + i])::Result{T, String}
 
     return ParseOk(
         ctx.buffer[1:(i + 1)],
@@ -48,12 +50,10 @@ function parse(p::ArgArgument{T, S}, ctx::Context)::ParseResult{S, String} where
     )
 end
 
-function complete(p::ArgArgument{T, S}, maybest::S)::Result{T, String} where {T, S}
-    somest = base(maybest)
-    if isnothing(somest)
-        return Err("Expected a `$(metavar(p.valparser))`, but too few arguments.")
-    end
-    st = something(somest)
+function complete(p::ArgArgument{T, <: ArgumentState}, maybest::TState)::Result{T, String} where {T, TState <: ArgumentState}
+    isnothing(base(maybest)) && return Err("Expected a `$(metavar(p.valparser))`, but too few arguments.")
+
+    st = @something base(maybest)
     if !is_error(st)
         return st
     end

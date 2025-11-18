@@ -1,3 +1,5 @@
+const OptionState{X} = Result{X, String}
+
 # options with values: -o 123 / --option value
 struct ArgOption{T, S, p, P}
     initialState::S
@@ -9,11 +11,11 @@ struct ArgOption{T, S, p, P}
 
 
     ArgOption(names::Tuple{Vararg{String}}, valparser::ValueParser{T}; description = "") where {T} =
-        new{T, Result{T, String}, 10, Nothing}(Err("Missing Option(s) $(names)."), nothing, valparser, [names...], description)
+        new{T, OptionState{T}, 10, Nothing}(Err("Missing Option(s) $(names)."), nothing, valparser, [names...], description)
 end
 
 
-function parse(p::ArgOption{T, S}, ctx::Context)::ParseResult{S, String} where {T, S <: Result{T, String}}
+function parse(p::ArgOption{T, OptionState{T}}, ctx::Context{OptionState{T}})::ParseResult{OptionState{T}, String} where {T}
 
     if ctx.optionsTerminated
         return ParseErr(0, "No more options to be parsed.")
@@ -39,7 +41,7 @@ function parse(p::ArgOption{T, S}, ctx::Context)::ParseResult{S, String} where {
             return ParseErr(1, "Option $(ctx.buffer[1]) requires a value, but got no value.")
         end
 
-        result = p.valparser(ctx.buffer[2])
+        result = p.valparser(ctx.buffer[2])::Result{T, String}
 
         return ParseOk(
             ctx.buffer[1:2],
@@ -67,7 +69,7 @@ function parse(p::ArgOption{T, S}, ctx::Context)::ParseResult{S, String} where {
         end
 
         value = ctx.buffer[1][(length(prefix) + 1):end]
-        result = p.valparser(value)
+        result = p.valparser(value)::Result{T, String}
 
         return ParseOk(
             ctx.buffer[1:1],
@@ -86,8 +88,6 @@ function parse(p::ArgOption{T, S}, ctx::Context)::ParseResult{S, String} where {
     )
 end
 
-function complete(p::ArgOption{T}, st::Result{T, String})::Result{T, String} where {T}
-    !is_error(st) && return st
-    error = unwrap_error(st)
-    return Err("$(p.names): $error")
+function complete(p::ArgOption{T, OptionState{T}}, st::OptionState{T})::Result{T, String} where {T}
+    return !is_error(st) ? st : Err("$(p.names): $(unwrap_error(st))")
 end

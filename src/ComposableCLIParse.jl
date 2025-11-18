@@ -42,7 +42,7 @@ using UUIDs: UUID, uuid_version
 
 # modifying combinators: Transform existing Parsers adding additional behaviour on top of the core one
 #	OK optional()
-#	TEST withDefault()
+#	OK withDefault()
 #	- map()
 #	- multiple(min, max) (match multiple times, collect into an array.)
 #	-
@@ -102,18 +102,18 @@ include("modifiers/modifiers.jl")
         Object{T, S, p, P},
         ModOptional{T, S, p, P},
         ModWithDefault{T, S, p, P},
-        ArgCommand{T,S,p,P},
+        ArgCommand{T, S, p, P},
     }
 end
 
-_parser(x::ArgFlag{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
-_parser(x::ArgOption{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
-_parser(x::ArgConstant{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
-_parser(x::ArgArgument{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
-_parser(x::ArgCommand{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
-_parser(x::Object{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
-_parser(x::ModOptional{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
-_parser(x::ModWithDefault{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
+_parser(x::ArgFlag{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
+_parser(x::ArgOption{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
+_parser(x::ArgConstant{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
+_parser(x::ArgArgument{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
+_parser(x::ArgCommand{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
+_parser(x::Object{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
+_parser(x::ModOptional{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
+_parser(x::ModWithDefault{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
 
 (priority(::Type{Parser{T, S, p, P}})::Int) where {T, S, p, P} = p
 priority(o::Parser) = priority(typeof(o))
@@ -141,7 +141,7 @@ command(name::String, p::Parser; kw...) = _parser(ArgCommand(name, p))
 
 # constructors
 object(obj::NamedTuple) = _parser(_object(obj))
-object(objlabel, obj::NamedTuple) = _parser(_object(obj; label=objlabel))
+object(objlabel, obj::NamedTuple) = _parser(_object(obj; label = objlabel))
 
 # modifiers
 optional(p::Parser) = _parser(ModOptional(p))

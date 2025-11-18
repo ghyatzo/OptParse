@@ -1,3 +1,5 @@
+const ObjectState{L, P} = NamedTuple{X, P}
+
 struct Object{T, S, p, P}
     initialState::S # NamedTuple of the states of its parsers
     #
@@ -5,8 +7,8 @@ struct Object{T, S, p, P}
     label::String
 end
 
-Object{T}(priority, initialState::S, parsers, label) where {T, S} =
-    Object{T, S, priority, typeof(parsers)}(initialState, parsers, label)
+Object{T}(priority, initialState::TState, parsers, label) where {T, TState} =
+    Object{T, TState, priority, typeof(parsers)}(initialState, parsers, label)
 
 #=
 	This is does the same thing but in a different way.

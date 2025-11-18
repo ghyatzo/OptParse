@@ -1,3 +1,6 @@
+
+const FlagState = Result{Bool, String}
+
 # single boolean flags: -q --long
 struct ArgFlag{T, S, p, P}
     initialState::S
@@ -8,11 +11,11 @@ struct ArgFlag{T, S, p, P}
 
 
     ArgFlag(names::Tuple{Vararg{String}}; description = "") =
-        new{Bool, Result{Bool, String}, 9, Nothing}(Err("Missing Flag(s) $(names)."), nothing, [names...], description)
+        new{Bool, FlagState, 9, Nothing}(Err("Missing Flag(s) $(names)."), nothing, [names...], description)
 end
 
 
-function parse(p::ArgFlag{Bool, Result{Bool, String}}, ctx::Context)::ParseResult{Result{Bool, String}, String}
+function parse(p::ArgFlag{Bool, FlagState}, ctx::Context{FlagState})::ParseResult{FlagState, String}
 
     if ctx.optionsTerminated
         return ParseErr(0, "No more options to be parsed.")
@@ -37,7 +40,7 @@ function parse(p::ArgFlag{Bool, Result{Bool, String}}, ctx::Context)::ParseResul
 
             Context(
                 ctx.buffer[2:end],
-                Result{Bool, String}(Ok(true)),
+                FlagState(Ok(true)),
                 ctx.optionsTerminated
             )
         )
@@ -71,8 +74,6 @@ function parse(p::ArgFlag{Bool, Result{Bool, String}}, ctx::Context)::ParseResul
     )
 end
 
-function complete(p::ArgFlag, st::Result{Bool, String})::Result{Bool, String}
-    !is_error(st) && return st
-    error = unwrap_error(st)
-    return Err("$(p.names): $error")
+function complete(p::ArgFlag, st::FlagState)::Result{Bool, String}
+    return !is_error(st) ? st : Err("$(p.names): $(unwrap_error(st))")
 end
