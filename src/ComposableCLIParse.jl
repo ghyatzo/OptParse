@@ -12,7 +12,7 @@ using UUIDs: UUID, uuid_version
 #	OK option()
 #	OK flag()
 #   TEST argument()
-#	- command()
+#	TEST command()
 #	- parsers priority: command > argument > option > flag > constant
 
 
@@ -62,6 +62,7 @@ export argparse,
     flag,
     option,
     argument,
+    command,
 
     # valueparsers
     str,
@@ -101,16 +102,18 @@ include("modifiers/modifiers.jl")
         Object{T, S, p, P},
         ModOptional{T, S, p, P},
         ModWithDefault{T, S, p, P},
+        ArgCommand{T,S,p,P},
     }
 end
 
-parser(x::ArgFlag{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
-parser(x::ArgOption{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
-parser(x::ArgConstant{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
-parser(x::ArgArgument{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
-parser(x::Object{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
-parser(x::ModOptional{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
-parser(x::ModWithDefault{T, S, p, P}) where {T, S, p, P} = Parser{T, S, p, P}(x)
+_parser(x::ArgFlag{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
+_parser(x::ArgOption{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
+_parser(x::ArgConstant{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
+_parser(x::ArgArgument{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
+_parser(x::ArgCommand{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
+_parser(x::Object{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
+_parser(x::ModOptional{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
+_parser(x::ModWithDefault{T,S,p,P}) where {T,S,p,P} = Parser{T,S,p,P}(x)
 
 (priority(::Type{Parser{T, S, p, P}})::Int) where {T, S, p, P} = p
 priority(o::Parser) = priority(typeof(o))
@@ -127,22 +130,23 @@ parse(p::Parser, ctx::Context) = @unionsplit parse(p, ctx)
 complete(p::Parser, st) = @unionsplit complete(p, st)
 
 # primitives
-option(names::Tuple{Vararg{String}}, valparser::ValueParser{T}; kw...) where {T} = parser(ArgOption(Tuple(names), valparser; kw...))
-option(names::String, valparser::ValueParser{T}; kw...) where {T} = parser(ArgOption((names,), valparser; kw...))
-flag(names...; kw...) = parser(ArgFlag(names; kw...))
+option(names::Tuple{Vararg{String}}, valparser::ValueParser{T}; kw...) where {T} = _parser(ArgOption(Tuple(names), valparser; kw...))
+option(names::String, valparser::ValueParser{T}; kw...) where {T} = _parser(ArgOption((names,), valparser; kw...))
+flag(names...; kw...) = _parser(ArgFlag(names; kw...))
 macro constant(val)
-    return :(parser(ArgConstant($val)))
+    return :(_parser(ArgConstant($val)))
 end
-argument(valparser::ValueParser{T}; kw...) where {T} = parser(ArgArgument(valparser; kw...))
+argument(valparser::ValueParser{T}; kw...) where {T} = _parser(ArgArgument(valparser; kw...))
+command(name::String, p::Parser; kw...) = _parser(ArgCommand(name, p))
 
 # constructors
-object(obj::NamedTuple) = parser(_object(obj))
-object(objlabel, obj::NamedTuple) = parser(_object(obj; label = objlabel))
+object(obj::NamedTuple) = _parser(_object(obj))
+object(objlabel, obj::NamedTuple) = _parser(_object(obj; label=objlabel))
 
 # modifiers
-optional(p::Parser) = parser(ModOptional(p))
-withDefault(p::Parser{T}, default::T) where {T} = parser(ModWithDefault(p, default))
-withDefault(default::T) where {T} = (p::Parser{T}) -> parser(ModWithDefault(p, default))
+optional(p::Parser) = _parser(ModOptional(p))
+withDefault(p::Parser{T}, default::T) where {T} = _parser(ModWithDefault(p, default))
+withDefault(default::T) where {T} = (p::Parser{T}) -> _parser(ModWithDefault(p, default))
 
 #####
 # entry point
