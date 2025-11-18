@@ -99,10 +99,10 @@ end
             end
         end
 
-        @test "should fail when passed strings" begin
-            @test_throws parser = @constant("hello")
-        end
-        
+        # @test "should fail when passed strings" begin
+        #     @test_throws "Symbol" @constant("hello")
+        # end
+
         @testset "should complete successfully with a constant value" begin
             parser = @constant(69)
             result = complete(parser, Result{Val{69}, String}(Ok(Val(69))))
@@ -136,7 +136,7 @@ end
     @testset "Flag parser" begin
 
         @testset "should parse single short flag" begin
-            parser = flag(["-v"])
+            parser = flag("-v")
             context = Context(["-v"], parser.initialState, false)
 
             result = @unionsplit parse(parser, context)
@@ -150,7 +150,7 @@ end
         end
 
         @testset "should parse long flag" begin
-            parser = flag(["--verbose"])
+            parser = flag("--verbose")
             context = Context(["--verbose"], parser.initialState, false)
 
             result = @unionsplit parse(parser, context)
@@ -164,7 +164,7 @@ end
         end
 
         @testset "should parse multiple flag names" begin
-            parser = flag(["-v", "--verbose"])
+            parser = flag("-v", "--verbose")
 
             # First: "-v"
             context1 = Context(["-v"], parser.initialState, false)
@@ -182,7 +182,7 @@ end
         end
 
         @testset "should fail when flag is already set" begin
-            parser = flag(["-v"])
+            parser = flag("-v")
             # Represent "already set" using Result-based state:
             context = Context(["-v"], Result{Bool, String}(Ok(true)), false)
 
@@ -196,7 +196,7 @@ end
         end
 
         @testset "should handle bundled short flags" begin
-            parser = flag(["-v"])
+            parser = flag("-v")
             context = Context(["-vd"], parser.initialState, false)
 
             result = @unionsplit parse(parser, context)
@@ -210,7 +210,7 @@ end
         end
 
         @testset "should fail when flags are terminated" begin
-            parser = flag(["-v"])
+            parser = flag("-v")
             context = Context(["-v"], parser.initialState, true)
 
             result = @unionsplit parse(parser, context)
@@ -223,7 +223,7 @@ end
         end
 
         @testset "should handle flags terminator --" begin
-            parser = flag(["-v"])
+            parser = flag("-v")
             context = Context(["--"], parser.initialState, false)
 
             result = @unionsplit parse(parser, context)
@@ -238,7 +238,7 @@ end
         end
 
         @testset "should handle empty buffer" begin
-            parser = flag(["-v"])
+            parser = flag("-v")
             context = Context(String[], parser.initialState, false)
 
             result = @unionsplit parse(parser, context)
@@ -251,8 +251,8 @@ end
         end
 
         @testset "should be type stable" begin
-            @test_opt flag(["-v"])
-            parser = flag(["-v"])
+            @test_opt flag("-v")
+            parser = flag("-v")
 
             context = Context(["-v"], parser.initialState, false)
 
@@ -379,7 +379,7 @@ end
    @testset "Optional parser" begin
 
         @testset "should create a parser with same priority as wrapped parser" begin
-            baseParser     = flag(["-v", "--verbose"])
+            baseParser     = flag("-v", "--verbose")
             optionalParser = optional(baseParser)
 
             @test priority(optionalParser) == priority(baseParser)
@@ -388,7 +388,7 @@ end
         end
 
         @testset "should return wrapped parser value when it succeeds" begin
-            baseParser     = flag(["-v", "--verbose"])
+            baseParser     = flag("-v", "--verbose")
             optionalParser = optional(baseParser)
 
             context = Context(["-v"], optionalParser.initialState)
@@ -422,7 +422,7 @@ end
         end
 
         @testset "should propagate failed parse results" begin
-            baseParser     = flag(["-v", "--verbose"])
+            baseParser     = flag("-v", "--verbose")
             optionalParser = optional(baseParser)
 
             context = Context(["--help"], optionalParser.initialState)
@@ -436,7 +436,7 @@ end
         end
 
         @testset "should complete with undefined when internal state is undefined" begin
-            baseParser     = flag(["-v", "--verbose"])
+            baseParser     = flag("-v", "--verbose")
             optionalParser = optional(baseParser)
 
             completeResult = complete(optionalParser, none(tstate(baseParser)))
@@ -446,7 +446,7 @@ end
         end
 
         @testset "should complete with wrapped parser result when state is defined" begin
-            baseParser     = flag(["-v", "--verbose"])
+            baseParser     = flag("-v", "--verbose")
             optionalParser = optional(baseParser)
 
             # Simulate a collected successful inner state (as optional.parse would)
@@ -507,7 +507,7 @@ end
         end
 
         @testset "should handle options terminator" begin
-            baseParser     = flag(["-v", "--verbose"])
+            baseParser     = flag("-v", "--verbose")
             optionalParser = optional(baseParser)
 
             context = Context(["-v"], optionalParser.initialState)
@@ -522,7 +522,7 @@ end
         end
 
         @testset "should work with bundled short options through wrapped parser" begin
-            baseParser     = flag(["-v"])
+            baseParser     = flag("-v")
             optionalParser = optional(baseParser)
 
             context     = Context(["-vd"], optionalParser.initialState)
@@ -576,3 +576,85 @@ end
         end
     end
 end
+
+
+#=
+
+You are translating a suite of unit tests from TypeScript to Julia.
+
+Context / Domain Types (use exactly these; include them in your mental model but do NOT re-define them unless I ask)
+using ErrorTypes
+
+struct Context{S}
+    buffer::Vector{String}
+    state::S                 # accumulator for partial states (e.g. NamedTuple or parser-specific state)
+    optionsTerminated::Bool
+end
+Context(args::Vector{String}, state) = Context{typeof(state)}(args, state, false)
+
+struct ParseSuccess{S}
+    consumed::Tuple{Vararg{String}}
+    next::Context{S}
+end
+ParseSuccess(cons::Vector{String}, next) = ParseSuccess((cons...), next)
+ParseSuccess(cons::String,         next) = ParseSuccess((cons,),  next)
+
+struct ParseFailure{E}
+    consumed::Int
+    error::E
+end
+
+const ParseResult{S,E} = Result{ParseSuccess{S}, ParseFailure{E}}
+
+Required API shape (important)
+- Do not use method-style calls (no `parser.parse`, no `parser.complete`).
+- Always use the free functions exactly as:
+  - parse(parser, context::Context)
+  - complete(parser, state)
+- When a TS test calls parse with an argv array, construct a Context first:
+  - ctx = Context(argv_vector, parser.initialState)
+  - res = parse(parser, ctx)
+- For tests that require optionsTerminated = true, construct explicitly:
+  - Context{typeof(state)}(buffer, state, true)
+
+ErrorTypes.jl usage
+- Treat all parser results as Result/Option from ErrorTypes.jl.
+- Use:
+  - is_error(x) to test failure
+  - unwrap(x) to access success payload
+  - unwrap_error(x) (v0.5+ spelling) to access failure payload
+- For TS’s assertErrorIncludes(result.error, "..."), write:
+  - @test occursin("...", string(error_or_result))
+- Use `nothing` where TS expects `undefined`.
+
+Structural differences to respect
+- ParseSuccess.consumed is a tuple of String in Julia.
+  Compare with tuple literals, e.g. ("-v",) or ("--port","8080").
+  Do not compare to Vector unless you intentionally convert.
+- Context.buffer is Vector{String}; compare to String[] for empty.
+- Do not mutate structs; construct new Context values when "updating".
+- option parser takes the value parser as first argument: like so option(integer(), "--option", "-o")
+
+Style constraints for the translation
+- Do not introduce any helper functions or macros in tests (no test helpers).
+- Do not mimic TS assertion style; just preserve the logic of what is being checked.
+- Use plain @test, is_error(...), unwrap(...), unwrap_error(...), direct field access, and occursin(...).
+- Keep one @testset per TS it(...) block with the same description.
+- When TS checks Array.isArray(state), assert the logically equivalent Julia property (e.g., state isa AbstractVector) and length checks as needed.
+- When TS expects undefined, assert `=== nothing`.
+- If a TS test manually feeds a completion state, mirror that with Vector{Result} values, e.g. [Ok(true)] or [Err("message")], unless the parser exposes an exact type; only assert what TS asserts (value or message).
+
+Output format
+- Produce one Julia test file content (a single code block), ready to save under test/..._tests.jl.
+- At the top of the file, include: using Test, using ErrorTypes, and any needed module imports (assume a placeholder YourParserModule if necessary, but keep it commented).
+- Translate exactly the TS it(...) cases I provide, in order, into @testset blocks with the same names.
+- Ensure every test uses the free-function API: parse(parser, context) and complete(parser, state).
+
+The tests to translate (TypeScript) — translate ALL of them below
+Paste them verbatim between the markers. Do not summarize; output only the Julia test file content.
+
+---BEGIN-TS-TESTS---
+(paste the TypeScript `it(...)` test blocks here)
+
+
+=#

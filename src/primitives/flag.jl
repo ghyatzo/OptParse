@@ -7,8 +7,8 @@ struct ArgFlag{T, S, p, P}
     description::String
 
 
-    ArgFlag(names::Vector{String}; description = "") =
-        new{Bool, Result{Bool, String}, 9, Nothing}(Err("Missing Flag(s) $(names)."), nothing, names, description)
+    ArgFlag(names::Tuple{Vararg{String}}; description = "") =
+        new{Bool, Result{Bool, String}, 9, Nothing}(Err("Missing Flag(s) $(names)."), nothing, [names...], description)
 end
 
 
