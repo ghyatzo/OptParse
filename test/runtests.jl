@@ -254,10 +254,7 @@ end
             @test_opt flag("-v")
             parser = flag("-v")
 
-            context = Context(["-v"], parser.initialState, false)
-
-            _p(par, ctx) = @unionsplit parse(par, ctx)
-            @test_opt _p(parser, context)
+            @test_opt argparse(parser, ["-v"])
         end
     end
 
@@ -367,10 +364,7 @@ end
             @test_opt option("--port", integer())
             parser = option("--port", integer())
 
-            context = Context(["--port", "8080"], parser.initialState, false)
-
-            _p(par, ctx) = @unionsplit parse(par, ctx)
-            @test_opt _p(parser, context)
+            @test_opt argparse(parser, ["--port", "8080"])
         end
     end
 end
@@ -378,152 +372,171 @@ end
 @testset "Constructors" begin
     @testset "Objects" begin
 
-    @testset "should combine multiple parsers into an object" begin
-        parser = object((
-            verbose = flag("-v", "--verbose"),
-            port    = option(("-p", "--port"), integer()),
-        ))
+        @testset "should combine multiple parsers into an object" begin
+            parser = object(
+                (
+                    verbose = flag("-v", "--verbose"),
+                    port = option(("-p", "--port"), integer()),
+                )
+            )
 
-        @test priority(parser) >= 10
+            @test priority(parser) >= 10
 
-        # initialState should contain fields :verbose and :port
-        @test hasproperty(parser, :initialState)
-        names = propertynames(parser.initialState)
-        @test :verbose in names
-        @test :port in names
-    end
-
-    @testset "should parse multiple options in sequence" begin
-        parser = object((
-            verbose = flag("-v"),
-            port    = option("-p", integer()),
-        ))
-
-        argv = ["-v", "-p", "8080"]
-        ctx = Context(argv, parser.initialState)
-        res = parse(parser, ctx)
-
-        @test !is_error(res)
-        if !is_error(res)
-            ps = unwrap(res)
-            st = ps.next.state
-            @test haskey(Dict(propertynames(st) .=> getfield.(Ref(st), propertynames(st))), :verbose)
-            @test haskey(Dict(propertynames(st) .=> getfield.(Ref(st), propertynames(st))), :port)
-            @test (@? getfield(st, :verbose)) == true
-            @test (@? getfield(st, :port)) == 8080
+            # initialState should contain fields :verbose and :port
+            @test hasproperty(parser, :initialState)
+            names = propertynames(parser.initialState)
+            @test :verbose in names
+            @test :port in names
         end
-    end
 
-    @testset "should work with labeled objects" begin
-        parser = object("Test Group", (
-            flag = flag("-f"),
-        ))
+        @testset "should parse multiple options in sequence" begin
+            parser = object(
+                (
+                    verbose = flag("-v"),
+                    port = option("-p", integer()),
+                )
+            )
 
-        @test hasproperty(parser, :initialState)
-        names = propertynames(parser.initialState)
-        @test :flag in names
-    end
+            argv = ["-v", "-p", "8080"]
+            ctx = Context(argv, parser.initialState)
+            res = parse(parser, ctx)
 
-    @testset "should handle parsing failure in nested parser" begin
-        parser = object((
-            port = option("-p", integer(; min=1)),
-        ))
-
-        argv = ["-p", "0"]
-        ctx = Context(argv, parser.initialState)
-        res = parse(parser, ctx)
-
-        @test is_error(res)
-    end
-
-    @testset "should fail when no option matches" begin
-        parser = object((
-            verbose = flag("-v"),
-        ))
-
-        buffer = ["--help"]
-        state = parser.initialState
-        ctx = Context(buffer, state)  # optionsTerminated defaults to false
-        res = parse(parser, ctx)
-
-        @test is_error(res)
-        if is_error(res)
-            pf = unwrap_error(res)
-            @test pf.consumed == 0
-            @test occursin("Unexpected option", string(pf.error))
+            @test !is_error(res)
+            if !is_error(res)
+                ps = unwrap(res)
+                st = ps.next.state
+                @test haskey(Dict(propertynames(st) .=> getfield.(Ref(st), propertynames(st))), :verbose)
+                @test haskey(Dict(propertynames(st) .=> getfield.(Ref(st), propertynames(st))), :port)
+                @test (@? getfield(st, :verbose)) == true
+                @test (@? getfield(st, :port)) == 8080
+            end
         end
-    end
 
-    @testset "should handle empty arguments gracefully when required options are present" begin
-        parser = object((
-            verbose = flag("-v"),
-            port    = option( "-p", integer()),
-        ))
+        @testset "should work with labeled objects" begin
+            parser = object(
+                "Test Group", (
+                    flag = flag("-f"),
+                )
+            )
 
-        argv = String[]
-        ctx = Context(argv, parser.initialState)
-        res = parse(parser, ctx)
-
-        @test is_error(res)
-        if is_error(res)
-            pf = unwrap_error(res)
-            @test occursin("Expected an option", string(pf.error))
+            @test hasproperty(parser, :initialState)
+            names = propertynames(parser.initialState)
+            @test :flag in names
         end
-    end
 
-    # @testset "should succeed with empty input when only Boolean flags are present" begin
-    #     parser = object((
-    #         watch = flag("--watch"),
-    #     ))
+        @testset "should handle parsing failure in nested parser" begin
+            parser = object(
+                (
+                    port = option("-p", integer(; min = 1)),
+                )
+            )
 
-    #     argv = String[]
-    #     ctx = Context(argv, parser.initialState)
-    #     res = parse(parser, ctx)
+            res = argparse(parser, ["-p", "0"])
 
-    #     @test !is_error(res)
-    #     if !is_error(res)
-    #         st = unwrap(res).next.state
-    #         @test getfield(st, :watch) == false
-    #     end
-    # end
+            @test is_error(res)
+        end
 
-    # @testset "should succeed with empty input when multiple Boolean flags are present" begin
-    #     parser = object((
-    #         watch   = flag("--watch"),
-    #         verbose = flag("--verbose"),
-    #         debug   = flag("--debug"),
-    #     ))
+        @testset "should fail when no option matches" begin
+            parser = object(
+                (
+                    verbose = flag("-v"),
+                )
+            )
 
-    #     argv = String[]
-    #     ctx = Context(argv, parser.initialState)
-    #     res = parse(parser, ctx)
+            buffer = ["--help"]
+            state = parser.initialState
+            ctx = Context(buffer, state)  # optionsTerminated defaults to false
+            res = parse(parser, ctx)
 
-    #     @test !is_error(res)
-    #     if !is_error(res)
-    #         st = unwrap(res).next.state
-    #         @test getfield(st, :watch) == false
-    #         @test getfield(st, :verbose) == false
-    #         @test getfield(st, :debug) == false
-    #     end
-    # end
+            @test is_error(res)
+            if is_error(res)
+                pf = unwrap_error(res)
+                @test pf.consumed == 0
+                @test occursin("No Matched", string(pf.error))
+            end
+        end
 
-    # @Testset "should parse Boolean flags correctly when provided" begin
-    #     parser = object((
-    #         watch   = flag("--watch"),
-    #         verbose = flag("--verbose"),
-    #     ))
+        @testset "should handle empty arguments gracefully when required options are present" begin
+            parser = object(
+                (
+                    verbose = flag("-v"),
+                    port = option("-p", integer()),
+                )
+            )
 
-    #     argv = ["--watch"]
-    #     ctx = Context(argv, parser.initialState)
-    #     res = parse(parser, ctx)
+            argv = String[]
+            ctx = Context(argv, parser.initialState)
+            res = parse(parser, ctx)
 
-    #     @test !is_error(res)
-    #     if !is_error(res)
-    #         st = unwrap(res).next.state
-    #         @test getfield(st, :watch) == true
-    #         @test getfield(st, :verbose) == false
-    #     end
-    # end
+            @test is_error(res)
+            if is_error(res)
+                pf = unwrap_error(res)
+                @test occursin("Expected argument, option", string(pf.error))
+            end
+        end
+
+        @testset "handles complex objects" begin
+
+            obj = object(
+                "test", (
+                    cst = @constant(10),
+                    option = option("--host", str(; metavar = "HOST")),
+                    flag = flag("--verbose", "-v"),
+                    flag2 = flag("--test"),
+                    arg = argument(str(; metavar = "TEST")),
+                )
+            )
+
+            ctx = Context(["--verbose", "--host", "me", "--test", "--", "--test"], obj.initialState)
+
+            result = parse(obj, ctx)
+            @test !is_error(result)
+            succ = unwrap(result)
+
+            st = succ.next.state
+            comp = complete(obj, st)
+
+            @test !is_error(comp)
+            succ = unwrap(comp)
+
+            @test succ.cst == 10
+            @test succ.option == "me"
+            @test succ.flag == true
+            @test succ.flag2 == true
+            @test succ.arg == "--test"
+        end
+
+        @testset "should be type stable" begin
+
+            @test_opt object(
+                "test", (
+                    cst = @constant(10),
+                    option = option("--host", str(; metavar = "HOST")),
+                    flag = flag("--verbose", "-v"),
+                    flag2 = flag("--test"),
+                    arg = argument(str(; metavar = "TEST")),
+                )
+            )
+
+            obj = object(
+                "test", (
+                    cst = @constant(10),
+                    option = option("--host", str(; metavar = "HOST")),
+                    flag = flag("--verbose", "-v"),
+                    flag2 = flag("--test"),
+                    arg = argument(str(; metavar = "TEST")),
+                )
+            )
+
+            ctx = Context(["--verbose", "--host", "me", "--test", "--", "--test"], obj.initialState)
+
+            @test_opt parse(obj, ctx)
+
+            res = parse(obj, ctx)
+            succ = unwrap(res)
+
+            @test_opt complete(obj, succ.next.state)
+        end
 
     end
 end
@@ -733,9 +746,17 @@ end
 
 #=
 
-You are translating a suite of unit tests from TypeScript to Julia.
 
-Context / Domain Types (use exactly these; include them in your mental model but do NOT re-define them unless I ask)
+
+**Translation Prompt for TypeScript → Julia Unit Tests (Updated with your extra points)**
+
+You are translating a suite of unit tests from **TypeScript** to **Julia**.
+
+***
+
+### Context / Domain Types (use exactly these; include them in your mental model but **do NOT re-define** them unless asked)
+
+```julia
 using ErrorTypes
 
 struct Context{S}
@@ -758,56 +779,109 @@ struct ParseFailure{E}
 end
 
 const ParseResult{S,E} = Result{ParseSuccess{S}, ParseFailure{E}}
+```
 
-Required API shape (important)
-- Do not use method-style calls (no `parser.parse`, no `parser.complete`).
-- Always use the free functions exactly as:
-  - parse(parser, context::Context)
-  - complete(parser, state)
-- When a TS test calls parse with an argv array, construct a Context first:
-  - ctx = Context(argv_vector, parser.initialState)
-  - res = parse(parser, ctx)
-- For tests that require optionsTerminated = true, construct explicitly:
-  - Context{typeof(state)}(buffer, state, true)
+***
 
-ErrorTypes.jl usage
-- Treat all parser results as Result/Option from ErrorTypes.jl.
-- Use:
-  - is_error(x) to test failure
-  - unwrap(x) to access success payload
-  - unwrap_error(x) (v0.5+ spelling) to access failure payload
-- For TS’s assertErrorIncludes(result.error, "..."), write:
-  - @test occursin("...", string(error_or_result))
-- Use `nothing` where TS expects `undefined`.
+### Required API shape (important)
 
-Structural differences to respect
-- ParseSuccess.consumed is a tuple of String in Julia.
-  Compare with tuple literals, e.g. ("-v",) or ("--port","8080").
-  Do not compare to Vector unless you intentionally convert.
-- Context.buffer is Vector{String}; compare to String[] for empty.
-- Do not mutate structs; construct new Context values when "updating".
-- option parser takes the value parser as first argument: like so option(integer(), "--option", "-o")
+*   **Do not use method-style calls** (no `parser.parse`, no `parser.complete`).
+*   Always use the **free functions** exactly as:
+    *   `parse(parser, context::Context)`
+    *   `complete(parser, state)`
+*   When a TS test calls `parse` **with an argv array**, prefer `argparse` (see “Additional rules”):
+    *   `res = argparse(parser, ["-v", "…"])`
+    *   If you must construct a context, do:
+        *   `ctx = Context(argv_vector, parser.initialState)`
+        *   `res = parse(parser, ctx)`
+*   For tests that require `optionsTerminated = true`, construct explicitly:
+    *   `Context{typeof(state)}(buffer, state, true)`
 
-Style constraints for the translation
-- Do not introduce any helper functions or macros in tests (no test helpers).
-- Do not mimic TS assertion style; just preserve the logic of what is being checked.
-- Use plain @test, is_error(...), unwrap(...), unwrap_error(...), direct field access, and occursin(...).
-- Keep one @testset per TS it(...) block with the same description.
-- When TS checks Array.isArray(state), assert the logically equivalent Julia property (e.g., state isa AbstractVector) and length checks as needed.
-- When TS expects undefined, assert `=== nothing`.
-- If a TS test manually feeds a completion state, mirror that with Vector{Result} values, e.g. [Ok(true)] or [Err("message")], unless the parser exposes an exact type; only assert what TS asserts (value or message).
+***
 
-Output format
-- Produce one Julia test file content (a single code block), ready to save under test/..._tests.jl.
-- At the top of the file, include: using Test, using ErrorTypes, and any needed module imports (assume a placeholder YourParserModule if necessary, but keep it commented).
-- Translate exactly the TS it(...) cases I provide, in order, into @testset blocks with the same names.
-- Ensure every test uses the free-function API: parse(parser, context) and complete(parser, state).
+### ErrorTypes.jl usage
 
-The tests to translate (TypeScript) — translate ALL of them below
-Paste them verbatim between the markers. Do not summarize; output only the Julia test file content.
+Treat all parser results as `Result`/`Option` from **ErrorTypes.jl**.
 
----BEGIN-TS-TESTS---
-(paste the TypeScript `it(...)` test blocks here)
+*   Use:
+    *   `is_error(x)` to test failure
+    *   `unwrap(x)` to access success payload
+    *   `unwrap_error(x)` to access failure payload
+*   For TS’s `assertErrorIncludes(result.error, "...")`, write:
+    *   `@test occursin("...", string(error_or_result))`
+*   Use `nothing` where TS expects `undefined`.
+
+***
+
+### Structural differences to respect
+
+*   `ParseSuccess.consumed` is a **tuple of `String`** in Julia.
+    *   Compare with tuple literals, e.g. `("-v",)` or `("--port","8080")`.
+    *   Do not compare to `Vector` unless you intentionally convert.
+*   `Context.buffer` is `Vector{String}`; compare to `String[]` for empty.
+*   Do **not** mutate structs; construct new `Context` values when “updating”.
+*   **Option parser value parser position**: `option("--long", "-s", value_parser)` — keep the value parser **at the end** (do **not** reorder).
+*   **Accessing fields**: prefer `getproperty(obj, :name)` (not `getfield`).
+
+***
+
+### Style constraints for the translation
+
+*   Do **not** introduce any helper functions or macros in tests (no test helpers).
+*   Do **not** mimic TS assertion style; just preserve the logic of what is being checked.
+*   Use plain `@test`, `is_error(...)`, `unwrap(...)`, `unwrap_error(...)`, direct property access via `getproperty`, and `occursin(...)`.
+*   Keep **one `@testset` per TS `it(...)` block** with the **same description**.
+*   When TS checks `Array.isArray(state)`, assert the logically equivalent Julia property (e.g., `state isa AbstractVector`) and length checks as needed.
+*   When TS expects `undefined`, assert `=== nothing`.
+*   If a TS test manually feeds a completion state, mirror that with `Vector{Result}` values, e.g. `[Ok(true)]` or `[Err("message")]`, unless the parser exposes an exact type; only assert what TS asserts (value or message).
+
+***
+
+### Additional rules (your extra points)
+
+*   When the TS code does `parse(parser, ["list", "of", "strings"])`, **translate to**:
+    *   `argparse(parser, ["list", "of", "strings"])`
+*   Keep the **value parser at the end** for `option(...)` (do **not** reorder arguments).
+*   Use `getproperty(x, :field)` instead of `getfield(x, :field)` when checking fields.
+*   When asserting `ParseSuccess.consumed` for **multiple flags/args**, ensure it’s a **tuple** (e.g., `("-n", "Alice")`), not an array.
+
+***
+
+### Output format
+
+*   Produce **one Julia test file content** (a single code block), ready to save under `test/..._tests.jl`.
+*   At the top of the file, include: `using Test`, `using ErrorTypes`, and any needed module imports (assume a placeholder `YourParserModule` if necessary, but keep it **commented**).
+*   **Translate exactly** the TS `it(...)` cases provided, **in order**, into `@testset` blocks with the same names.
+*   Ensure every test uses the **free-function API**: `parse(parser, context)` and `complete(parser, state)`, and prefer `argparse(parser, argv)` when the TS uses `parse(parser, [ ... ])`.
+
+***
+
+### Examples of common translations
+
+*   **TS**: `const result = parse(parser, ["-v", "-p", "8080"]);`
+    **Julia**: `res = argparse(parser, ["-v", "-p", "8080"])`
+
+*   **TS**: `assert.deepEqual(parseResult.consumed, ["-n", "Alice"]);`
+    **Julia**: `@test unwrap(res).consumed == ("-n", "Alice")`
+
+*   **TS**: `assert.equal(result.value.verbose, true);`
+    **Julia**: `@test getproperty(unwrap(res).next.state, :verbose) == true`
+
+*   **TS**: `parser.parse(context)`
+    **Julia**: `res = parse(parser, ctx)`
+
+*   **TS**: `parser.complete(state)`
+    **Julia**: `res = complete(parser, state)`
+
+***
+
+### Reminders
+
+*   Always **prefer `argparse`** when TS called `parse` with a literal argv array.
+*   For explicit context construction or special flags like `optionsTerminated`, use `Context(...)` as specified.
+*   Keep assertions minimal and faithful to what TS checks; avoid extra assumptions.
+*   Compare strings and tuples exactly; avoid unintended vector/tuple mismatches.
+*   Use `nothing` for `undefined`, and `getproperty` for field access.
 
 
 =#

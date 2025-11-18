@@ -110,41 +110,43 @@ end
 
 
     whilebody = Expr(:block)
-    for (i, field) in enumerate(labels)
-        push!(whilebody.args, quote
-            child_state = current_ctx.state[$(QuoteNode(field))]
-            child_parser = p[$(QuoteNode(field))]
-            child_ctx = @set ctx.state = child_state
 
-            result = parse(child_parser, child_ctx)::ParseResult{typeof(child_state), String}
+    for field in labels
+        push!(
+            whilebody.args, quote
+                field = $(QuoteNode(field))
+                child_state = current_ctx.state[$(QuoteNode(field))]
+                child_parser = p[$(QuoteNode(field))]
+                child_ctx = @set current_ctx.state = child_state
 
-            if is_error(result)
-                parse_err = unwrap_error(result)
-                if error.consumed <= parse_err.consumed
-                    error= parse_err
-                end
-            else
-                parse_ok = unwrap(result)
-                if length(parse_ok.consumed) > 0
-                    newstate = set(ctx.state, PropertyLens($(QuoteNode(field))), parse_ok.next.state)
+                result = parse(child_parser, child_ctx)::ParseResult{typeof(child_state), String}
 
-                    newctx = Context(
-                        parse_ok.next.buffer,
-                        newstate,
-                        ctx.optionsTerminated
-                    )
+                if is_error(result)
+                    parse_err = unwrap_error(result)
+                    if error.consumed <= parse_err.consumed
+                        error = parse_err
+                    end
+                    # Main.@infiltrate
+                else
+                    parse_ok = unwrap(result)
+                    if length(parse_ok.consumed) > 0
+                        newstate = set(current_ctx.state, PropertyLens($(QuoteNode(field))), parse_ok.next.state)
 
-                    allconsumed = (allconsumed..., parse_ok.consumed...)
-                    current_ctx = newctx
-                    madeprogress = true
-                    anysuccess = true
-                    @goto startwhile
+                        newctx = set(parse_ok.next, PropertyLens(:state), newstate)
+
+                        allconsumed = (allconsumed..., parse_ok.consumed...)
+                        current_ctx = newctx
+                        madeprogress = true
+                        anysuccess = true
+                        # Main.@infiltrate
+                        @goto startwhile
+                    end
                 end
             end
-        end)
+        )
     end
 
-    ex = quote
+    return ex = quote
         error = ParseFailure(0, "Expected argument, option or command, but got end of input.")
 
         #= greedy parsing trying to consume as many field as possible =#
@@ -154,11 +156,14 @@ end
         #= keep trying to parse fields until no more can be matched =#
         current_ctx = ctx
         madeprogress = true
+        iter = 0
+        maxiter = 10000 # avoids infinite loops
         @label startwhile
-        while (madeprogress && length(current_ctx.buffer) > 0)
+        while (madeprogress && length(current_ctx.buffer) > 0) && iter < maxiter
             madeprogress = false
 
             $whilebody
+            iter += 1
         end
 
         return current_ctx, error, allconsumed, anysuccess
@@ -166,6 +171,7 @@ end
 end
 
 function parse(p::Object{NamedTuple{fields, Tup}, S}, ctx::Context)::ParseResult{S, String} where {fields, Tup, S}
+    # @show _generated_parse_parsers(p.parsers, ctx)
 
     outctx, error, allconsumed, anysuccess = _generated_parse_parsers(p.parsers, ctx)
 
@@ -249,18 +255,21 @@ end
     ex = Expr(:block)
     Ps = PTup.parameters
     Ss = STup.parameters
-    for (i, field) in enumerate(labels)
+    i = 1
+    for field in labels
         T = tval(Ps[i])
 
-        push!(ex.args, quote
-            child_state = state[$(QuoteNode(field))]
-            child_parser = p[$(QuoteNode(field))]
+        push!(
+            ex.args, quote
+                child_state = state[$(QuoteNode(field))]
+                child_parser = p[$(QuoteNode(field))]
 
-            result = complete(child_parser, child_state)::Result{$T, String}
-            if is_error(result)
-                return false, result
-            else
-                output = insert(output, PropertyLens($(QuoteNode(field))), unwrap(result))
+                result = complete(child_parser, child_state)::Result{$T, String}
+                if is_error(result)
+                    return false, result
+                else
+                    output = insert(output, PropertyLens($(QuoteNode(field))), unwrap(result))
+                end
             end
         end)
     end
