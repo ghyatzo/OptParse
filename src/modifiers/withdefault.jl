@@ -15,7 +15,7 @@ function parse(p::ModWithDefault{T, WithDefaultState{S}}, ctx::Context{WithDefau
 
     childstate = isnothing(base(ctx.state)) ? p.parser.initialState : @something base(ctx.state)
     childctx = @set ctx.state = childstate
-    result = parse(p.parser, childctx)::ParseResult{S, String}
+    result = parse(unwrapunion(p.parser), childctx)::ParseResult{S, String}
 
     if !is_error(result)
         parse_ok = unwrap(result)
@@ -32,5 +32,5 @@ function complete(p::ModWithDefault{T, WithDefaultState{S}}, maybestate::WithDef
     isnothing(state) && return Ok(p.default)
 
     # here we can return directly since tval(ModWithDefault) == tval(inner parser)
-    return complete(p.parser, something(state))::Result{T, String}
+    return complete(unwrapunion(p.parser), something(state))::Result{T, String}
 end

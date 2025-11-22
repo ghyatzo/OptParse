@@ -14,11 +14,11 @@ end
     state = defaultParser.initialState
     ctx = Context(buffer, state)
 
-    parseResult = parse(defaultParser, ctx)
+    parseResult = splitparse(defaultParser, ctx)
     @test !is_error(parseResult)
     if !is_error(parseResult)
         next_state = unwrap(parseResult).next.state
-        completeResult = complete(defaultParser, next_state)
+        completeResult = splitcomplete(defaultParser, next_state)
         @test !is_error(completeResult)
         if !is_error(completeResult)
             @test unwrap(completeResult) === true
@@ -31,7 +31,7 @@ end
     defaultValue = false
     defaultParser = withDefault(baseParser, defaultValue)
 
-    completeResult = complete(defaultParser, none(tstate(baseParser)))
+    completeResult = splitcomplete(defaultParser, none(tstate(baseParser)))
     @test !is_error(completeResult)
     if !is_error(completeResult)
         @test unwrap(completeResult) === defaultValue
@@ -49,14 +49,14 @@ end
 #     defaultParser = withDefault(baseParser, defaultFunction)
 
 #     # First call
-#     completeResult1 = complete(defaultParser, nothing)
+#     completeResult1 = splitcomplete(defaultParser, nothing)
 #     @test !is_error(completeResult1)
 #     if !is_error(completeResult1)
 #         @test unwrap(completeResult1) === false
 #     end
 
 #     # Second call should increment
-#     completeResult2 = complete(defaultParser, nothing)
+#     completeResult2 = splitcomplete(defaultParser, nothing)
 #     @test !is_error(completeResult2)
 #     if !is_error(completeResult2)
 #         @test unwrap(completeResult2) === true
@@ -71,14 +71,14 @@ end
     state = defaultParser.initialState
     ctx = Context(buffer, state)
 
-    parseResult = parse(defaultParser, ctx)
+    parseResult = splitparse(defaultParser, ctx)
     @test !is_error(parseResult)
     if !is_error(parseResult)
         ps = unwrap(parseResult)
         @test ps.next.buffer == String[]
         @test ps.consumed == ("-n", "Alice")
 
-        completeResult = complete(defaultParser, ps.next.state)
+        completeResult = splitcomplete(defaultParser, ps.next.state)
         @test !is_error(completeResult)
         if !is_error(completeResult)
             @test unwrap(completeResult) == "Alice"
@@ -94,7 +94,7 @@ end
     state = defaultParser.initialState
     ctx = Context(buffer, state)
 
-    parseResult = parse(defaultParser, ctx)
+    parseResult = splitparse(defaultParser, ctx)
     @test is_error(parseResult)
     if is_error(parseResult)
         pf = unwrap_error(parseResult)
@@ -115,7 +115,7 @@ end
     # Defaults case
     argv_defaults = ["-v"]
     ctx_defaults = Context(argv_defaults, parser.initialState)
-    res_defaults = parse(parser, ctx_defaults)
+    res_defaults = splitparse(parser, ctx_defaults)
     @test !is_error(res_defaults)
     if !is_error(res_defaults)
         st = unwrap(res_defaults).next.state
@@ -127,7 +127,7 @@ end
     # Provided values case
     argv_values = ["-v", "-p", "3000", "-h", "example.com"]
     ctx_values = Context(argv_values, parser.initialState)
-    res_values = parse(parser, ctx_values)
+    res_values = splitparse(parser, ctx_values)
     @test !is_error(res_values)
     if !is_error(res_values)
         st = unwrap(res_values).next.state
@@ -145,11 +145,11 @@ end
     state = defaultParser.initialState
     ctx = Context(buffer, state)
 
-    parseResult = parse(defaultParser, ctx)
+    parseResult = splitparse(defaultParser, ctx)
     @test !is_error(parseResult)
     if !is_error(parseResult)
         next_state = unwrap(parseResult).next.state
-        completeResult = complete(defaultParser, next_state)
+        completeResult = splitcomplete(defaultParser, next_state)
         @test !is_error(completeResult)
         if !is_error(completeResult)
             @test unwrap(completeResult) == :hello
@@ -164,21 +164,21 @@ end
     arrayParser = withDefault(@constant((1, 2, 3)), (3, 2, 1))
 
     # Test string default
-    stringResult = complete(stringParser, none(tstate(stringParser.parser)))
+    stringResult = splitcomplete(stringParser, none(tstate(stringParser.parser)))
     @test !is_error(stringResult)
     if !is_error(stringResult)
         @test unwrap(stringResult) == "default-string"
     end
 
     # Test number default
-    numberResult = complete(numberParser, none(tstate(numberParser.parser)))
+    numberResult = splitcomplete(numberParser, none(tstate(numberParser.parser)))
     @test !is_error(numberResult)
     if !is_error(numberResult)
         @test unwrap(numberResult) == 42
     end
 
     # Test boolean default
-    booleanResult = complete(booleanParser, none(tstate(booleanParser.parser)))
+    booleanResult = splitcomplete(booleanParser, none(tstate(booleanParser.parser)))
     @test !is_error(booleanResult)
     if !is_error(booleanResult)
         @test unwrap(booleanResult) == true
@@ -186,7 +186,7 @@ end
 
     # Test array default (returns constant value, not default when parser succeeds)
     # When manually feeding a completion state, mirror it with Vector{Result}
-    arrayResult = complete(arrayParser, some(Val((1, 2, 3))))
+    arrayResult = splitcomplete(arrayParser, some(Val((1, 2, 3))))
     @test !is_error(arrayResult)
     if !is_error(arrayResult)
         @test unwrap(arrayResult) == (1, 2, 3)
@@ -199,7 +199,7 @@ end
 
     # Manually feed a failing completion state from the wrapped parser
     err::Result{tval(baseParser),String} = Err("Port must be >= 1")
-    completeResult = complete(defaultParser, some(err))
+    completeResult = splitcomplete(defaultParser, some(err))
     @test is_error(completeResult)
     if is_error(completeResult)
         @test occursin("Port must be >= 1", string(unwrap_error(completeResult)))
@@ -216,13 +216,12 @@ end
     # Test state wrapping during successful parse
     buffer = ["-n", "test"]
     ctx = Context(buffer, none(tstate(baseParser)))
-    parseResult = parse(defaultParser, ctx)
+    parseResult = splitparse(defaultParser, ctx)
 
     @test !is_error(parseResult)
     if !is_error(parseResult)
         ps = unwrap(parseResult)
         st = ps.next.state
-        @info st
         @test !is_error(st)
         if !is_error(st)
             @test unwrap(unwrap(st)) == "test"
@@ -304,7 +303,7 @@ end
     )
     )
 
-    @test_opt parse(parser, Context(["-c", "start", "-p", "3000", "-d"], parser.initialState))
+    @test_opt parse(unwrapunion(parser), Context(["-c", "start", "-p", "3000", "-d"], parser.initialState))
 
 
 

@@ -12,13 +12,13 @@ end
     optionalParser = optional(baseParser)
 
     context = Context(["-v"], optionalParser.initialState)
-    parseResult = parse(optionalParser, context)
+    parseResult = splitparse(optionalParser, context)
 
     @test !is_error(parseResult)
     ps = unwrap(parseResult)
 
     # Completing the optional with the state produced by parse
-    completeResult = complete(optionalParser, ps.next.state)
+    completeResult = splitcomplete(optionalParser, ps.next.state)
     @test !is_error(completeResult)
     @test unwrap(completeResult) == some(true)
 end
@@ -28,7 +28,7 @@ end
     optionalParser = optional(baseParser)
 
     context = Context(["-n", "Alice"], optionalParser.initialState)
-    parseResult = parse(optionalParser, context)
+    parseResult = splitparse(optionalParser, context)
 
     @test !is_error(parseResult)
     ps = unwrap(parseResult)
@@ -46,7 +46,7 @@ end
     optionalParser = optional(baseParser)
 
     context = Context(["--help"], optionalParser.initialState)
-    parseResult = parse(optionalParser, context)
+    parseResult = splitparse(optionalParser, context)
 
     @test is_error(parseResult)
     # pf = unwrap_error(parseResult)
@@ -59,7 +59,7 @@ end
     baseParser = flag("-v", "--verbose")
     optionalParser = optional(baseParser)
 
-    completeResult = complete(optionalParser, none(tstate(baseParser)))
+    completeResult = splitcomplete(optionalParser, none(tstate(baseParser)))
 
     @test !is_error(completeResult)
     @test unwrap(completeResult) === none(Bool)
@@ -71,7 +71,7 @@ end
 
     # Simulate a collected successful inner state (as optional.parse would)
     successfulState = some(Result{Bool, String}(Ok(true)))
-    completeResult = complete(optionalParser, successfulState)
+    completeResult = splitcomplete(optionalParser, successfulState)
 
     @test !is_error(completeResult)
     @test unwrap(completeResult) == some(true)
@@ -83,7 +83,7 @@ end
 
     # Simulate a collected failed inner state
     failedState = some(Result{Int, String}(Err("Port must be >= 1")))
-    completeResult = complete(optionalParser, failedState)
+    completeResult = splitcomplete(optionalParser, failedState)
 
     @test is_error(completeResult)
     @test occursin("Port must be >= 1", string(unwrap_error(completeResult)))
@@ -99,11 +99,11 @@ end
     )
 
     ctx = Context(["-v", "-p", "8080"], obj.initialState)
-    resultWithOptional = parse(obj, ctx)
+    resultWithOptional = splitparse(obj, ctx)
     @test !is_error(resultWithOptional)
     val = unwrap(resultWithOptional)
 
-    completeResult = complete(obj, val.next.state)
+    completeResult = splitcomplete(obj, val.next.state)
     @test !is_error(completeResult)
     val = unwrap(completeResult)
     @test val.verbose == true
@@ -111,14 +111,14 @@ end
     @test base(val.output) === nothing
 
     ctx = Context(["-v"], obj.initialState)
-    resultWithoutOptional = parse(obj, ctx)
+    resultWithoutOptional = splitparse(obj, ctx)
     @test !is_error(resultWithoutOptional)
     val2 = unwrap(resultWithoutOptional)
 
-    completeResult = complete(obj, val2.next.state)
+    completeResult = splitcomplete(obj, val2.next.state)
     @test !is_error(completeResult)
     val2 = unwrap(completeResult)
-    @info val2
+
     @test val2.verbose == true
     @test base(val2.port) === nothing
     @test base(val2.output) === nothing
@@ -129,12 +129,12 @@ end
     optionalParser = optional(baseParser)
 
     context = Context(String[], optionalParser.initialState)
-    parseResult = parse(optionalParser, context)
+    parseResult = splitparse(optionalParser, context)
 
     @test !is_error(parseResult)
     ps = unwrap(parseResult)
 
-    completeResult = complete(optionalParser, ps.next.state)
+    completeResult = splitcomplete(optionalParser, ps.next.state)
     @test !is_error(completeResult)
     @test unwrap(completeResult) == some(:hello)
 end
@@ -146,7 +146,7 @@ end
     context = Context(["-v"], optionalParser.initialState)
     context = Context{typeof(context.state)}(context.buffer, context.state, true)  # optionsTerminated=true
 
-    parseResult = parse(optionalParser, context)
+    parseResult = splitparse(optionalParser, context)
     @test is_error(parseResult)
     pf = unwrap_error(parseResult)
 
@@ -159,7 +159,7 @@ end
     optionalParser = optional(baseParser)
 
     context = Context(["-vd"], optionalParser.initialState)
-    parseResult = parse(optionalParser, context)
+    parseResult = splitparse(optionalParser, context)
 
     @test !is_error(parseResult)
     ps = unwrap(parseResult)
@@ -167,7 +167,7 @@ end
     @test ps.next.buffer == ["-d"]
     @test ps.consumed == ("-v",)
 
-    completeResult = complete(optionalParser, ps.next.state)
+    completeResult = splitcomplete(optionalParser, ps.next.state)
     @test !is_error(completeResult)
     @test unwrap(completeResult) == some(true)
 end
@@ -180,7 +180,7 @@ end
     @test optionalParser.initialState === none(tstate(baseParser))
 
     context = Context(["-n", "test"], none(tstate(baseParser)))
-    parseResult = parse(optionalParser, context)
+    parseResult = splitparse(optionalParser, context)
 
     @test !is_error(parseResult)
     ps = unwrap(parseResult)
@@ -205,5 +205,8 @@ end
 
     context = Context(["-n", "test"], none(tstate(baseParser)))
 
-    @test_opt parse(optionalParser, context)
+    @test_opt parse(unwrapunion(optionalParser), context)
+    res = parse(unwrapunion(optionalParser), context)
+
+    @test_opt complete(unwrapunion(optionalParser), unwrap(res).next.state)
 end

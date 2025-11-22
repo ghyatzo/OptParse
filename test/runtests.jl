@@ -1,6 +1,6 @@
 using Test
 using ComposableCLIParse
-using ComposableCLIParse: Context, parse, priority, complete, tstate, tval
+using ComposableCLIParse: Context, parse, priority, complete, tstate, tval, Parser
 using ErrorTypes
 using WrappedUnions: @unionsplit, unwrap as unwrapunion
 using JET
@@ -11,6 +11,10 @@ using UUIDs
     include("valueparsers.jl")
 
 end
+
+# define it here for ease of use
+splitparse(p::Parser, ctx::Context) = @unionsplit parse(p, ctx)
+splitcomplete(p::Parser, st) = @unionsplit complete(p, st)
 
 @testset "Primitives" begin
 

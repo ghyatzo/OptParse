@@ -13,7 +13,7 @@ function parse(p::ModOptional{T, OptionalState{S}}, ctx::Context{OptionalState{S
 
     childstate = isnothing(base(ctx.state)) ? p.parser.initialState : @something base(ctx.state)
     childctx = @set ctx.state = childstate
-    result = parse(p.parser, childctx)::ParseResult{S, String}
+    result = parse(unwrapunion(p.parser), childctx)::ParseResult{S, String}
 
     if !is_error(result)
         parse_ok = unwrap(result)
@@ -28,7 +28,7 @@ function complete(p::ModOptional{T, OptionalState{S}, _p, P}, maybestate::Option
     state = base(maybestate) # collapses the optional to a nothing or a Some
     isnothing(state) && return Ok(none(tval(P)))
 
-    result = complete(p.parser, something(state))::Result{tval(P), String}
+    result = complete(unwrapunion(p.parser), something(state))::Result{tval(P), String}
 
     if !is_error(result)
         return Ok(some(unwrap(result)))
