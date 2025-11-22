@@ -31,12 +31,13 @@ end
 
     valunion = Union{map(typeof∘Val, Tuple(collect(0:N)))...}
     for i in 1:N
-        parser_t = PTup.parameters[i]
+        parser_t = fieldtype(PTup, i)
+        parser_tstate = tstate(parser_t)
         push!(unrolled_loop.args, quote
             parser = parsers[$i]::$parser_t
             innerstate = ctx.state[2][$i]
             childstate = is_error(innerstate) ? parser.initialState : unwrap(innerstate).next.state
-            childctx = @set ctx.state = childstate
+            childctx = Context{$parser_tstate}(ctx.buffer, childstate, ctx.optionsTerminated)
 
             result = (@unionsplit parse(parser, childctx))::ParseResult{tstate(parser), String}
             if !is_error(result) && length(unwrap(result).consumed) > 0 # (ignores constants)
@@ -51,7 +52,6 @@ end
                 end
 
                 new_innerstate = set(ctx.state[2], IndexLens($i), some(parse_ok))
-
 
                 return ParseOk(
                     parse_ok.consumed, Context{OrState{$valunion, $X}}(
@@ -132,9 +132,6 @@ end
 
 #     return ParseErr(error[1], error[2])
 # end
-
-function _generated_or_complete(parsers)
-end
 
 function complete(p::ConstrOr{T}, orstate::OrState{Val{i}, S})::Result{T,String} where {i, T, S}
     i == 0 && return Err("No matching option or command.")

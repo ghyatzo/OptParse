@@ -50,7 +50,7 @@ _object(parsers_obj::NamedTuple; label="") =
         priorities = map(priority, parsers_t)
 
         parsers_obj_tval = NamedTuple{labels,Tuple{parsers_tvals...}}
-        init_state = NamedTuple{labels}( map(p -> p.initialState, parsers))
+        init_state = NamedTuple{labels, Tuple{parsers_tstates...}}( map(p -> p.initialState, parsers))
 
         ConstrObject{parsers_obj_tval}(init_state, sparsers_obj, label)
     end
@@ -65,11 +65,11 @@ _object(parsers_obj::NamedTuple; label="") =
     for field in labels
         push!(whilebody.args, quote
             field = $(QuoteNode(field))
-            child_state = current_ctx.state[$(QuoteNode(field))]
             child_parser = p[$(QuoteNode(field))]
-            child_ctx = @set current_ctx.state = child_state
+            child_state = current_ctx.state[$(QuoteNode(field))]
+            child_ctx = Context{tstate(child_parser)}(current_ctx.buffer, child_state, current_ctx.optionsTerminated)
 
-            result = (@unionsplit parse(child_parser, child_ctx))::ParseResult{typeof(child_state),String}
+            result = (@unionsplit parse(child_parser, child_ctx))::ParseResult{tstate(child_parser),String}
 
             if is_error(result)
                 parse_err = unwrap_error(result)

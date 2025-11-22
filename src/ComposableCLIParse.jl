@@ -104,7 +104,7 @@ include("modifiers/modifiers.jl")
         ConstrOr{T,S,p,P},
         ModOptional{T,S,p,P},
         ModWithDefault{T,S,p,P},
-        # ArgCommand{T,S,p,P},
+        ArgCommand{T,S,p,P},
     }
 end
 

@@ -33,6 +33,10 @@ splitcomplete(p::Parser, st) = @unionsplit complete(p, st)
     @testset "Argument parser" begin
         include("primitives/argument.jl")
     end
+
+    @testset "Command parser" begin
+        include("primitives/command.jl")
+    end
 end
 
 @testset "Constructors" begin
