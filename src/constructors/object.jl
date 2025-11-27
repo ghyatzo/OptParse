@@ -8,24 +8,28 @@ struct ConstrObject{T, S, p, P} <: AbstractParser{T, S, p, P}
 end
 
 ConstrObject{T}(initialState::TState, parsers, label) where {T, TState} =
-    ConstrObject{T, TState, mapreduce(p -> priority(p), max, parsers), typeof(parsers)}(initialState, parsers, label)
+    ConstrObject{
+        T,
+        TState,
+        mapreduce(p -> priority(p), max, parsers),
+        typeof(parsers)
+    }(initialState, parsers, label)
 
 #=
-	This is does the same thing but in a different way.
-	The difference is that the generated function approach
-	stresses the compiler more. And deals with an AST instead of an actual value
-=#
-# @generated function gen_sorted_obj(nt::NamedTuple{labels, PTup}) where {labels, PTup}
-# 	parsers_t = collect(PTup.parameters)
-# 	perm = sortperm(parsers_t; by=priority, rev=true)
-# 	slabels = labels[perm]
-# 	:(nt[$slabels])
-# end
+    This is does the same thing but in a different way.
+    The difference is that the generated function approach
+    stresses the compiler more. And deals with an AST instead of an actual value
 
-#=
-	we're using @assume_effects :foldable in order to tell julia that
-	this function is actually allowed to be constant-folded!
-	(from Mason Protter, black magic)
+    # @generated function gen_sorted_obj(nt::NamedTuple{labels, PTup}) where {labels, PTup}
+    #   parsers_t = collect(PTup.parameters)
+    #   perm = sortperm(parsers_t; by=priority, rev=true)
+    #   slabels = labels[perm]
+    #   :(nt[$slabels])
+    # end
+
+    we're using @assume_effects :foldable in order to tell julia that
+    this function is actually allowed to be constant-folded!
+    (from Mason Protter, black magic)
 =#
 Base.@assume_effects :foldable function _sort_obj_labels(
         labels, ::Type{PTup}
