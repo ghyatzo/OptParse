@@ -104,8 +104,8 @@ end
 
     return ex = quote
         #= if nothing inside the object can match our token, then it's "unexpected" =#
-        token = ctx.buffer[1]
-        error = ParseFailure(0, "Unexpected option or argument: `$(token)`")
+        error = length(ctx.buffer) > 0 ? ParseFailure(0, "Unexpected option or argument: `$(ctx.buffer[1])`") :
+            ParseFailure(0, "Expected option or argument, got end of input.")
         #= greedy parsing trying to consume as many field as possible =#
         anysuccess = false
         allconsumed::Tuple{Vararg{String}} = ()
@@ -128,6 +128,8 @@ end
 end
 
 function parse(p::ConstrObject{NamedTuple{fields, Tup}, S}, ctx::Context)::ParseResult{S, String} where {fields, Tup, S}
+
+    # TODO: check for duplicates
 
     outctx, error, allconsumed, anysuccess = _generated_object_parse(p.parsers, ctx)
 
