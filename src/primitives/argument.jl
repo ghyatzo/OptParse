@@ -39,8 +39,9 @@ function parse(p::ArgArgument{T, ArgumentState{S}}, ctx::Context{ArgumentState{S
     end
 
     if !is_error(ctx.state)
-        #=The state is a some, so this parser matched already with something.=#
-        return ParseErr(i, "The argument `$(metavar(p.valparser))` cannot be used multiple times.")
+        #=The state is a some, so this parser matched already with something.
+        Add one to the consumed since we're technically consuming this duplicate=#
+        return ParseErr(1+i, "The argument `$(metavar(p.valparser))` cannot be used multiple times.")
     end
 
     result = p.valparser(ctx.buffer[1 + i])::Result{T, String}

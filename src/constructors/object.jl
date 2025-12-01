@@ -82,6 +82,7 @@ end
                     end
                 else
                     parse_ok = unwrap(result)
+
                     if length(parse_ok.consumed) > 0
 
                         newstate = set(current_ctx.state, PropertyLens($(QuoteNode(field))), parse_ok.next.state)
@@ -93,8 +94,8 @@ end
                         anysuccess = true
 
                         #=
-                    We manually insert gotos to emulate a break within an unrolled for loop inside a while loop
-                    =#
+                        We manually insert gotos to emulate a break within an unrolled for loop inside a while loop
+                        =#
                         @goto startwhile
                     end
                 end

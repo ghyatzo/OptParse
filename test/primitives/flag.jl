@@ -100,6 +100,22 @@ end
     end
 end
 
+@testset "should handle option terminator edge cases correctly" begin
+    parser = flag("-v")
+
+    result = argparse(parser, ["--", "-v"])
+    @test is_error(result)
+    @test occursin("No more options", unwrap_error(result))
+
+    result = argparse(parser, ["--"])
+    @test is_error(result)
+    @test occursin("Missing", unwrap_error(result))
+
+    result = argparse(parser, ["-v", "--"])
+    @test !is_error(result)
+    @test (@? result) == true
+end
+
 @testset "should handle empty buffer" begin
     parser = flag("-v")
     context = Context(String[], parser.initialState, false)

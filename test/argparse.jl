@@ -49,7 +49,6 @@ end
         verbose = flag("-v"),
     ))
     result = argparse(parser, ["-v", "--"])
-
     @test !is_error(result)
     @test (@? result).verbose == true
 end

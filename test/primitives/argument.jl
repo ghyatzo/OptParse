@@ -116,6 +116,28 @@ end
     @test is_error(invalidPortRes) || is_error(getproperty(unwrap(invalidPortRes).next, :state))
 end
 
+@testset "should handle -- edge cases correctly" begin
+    parser = argument(str())
+
+    result = argparse(parser, ["--", "abc"])
+    @test !is_error(result)
+    @test (@? result) == "abc"
+
+    ctx = Context(["abc", "--"], parser.initialState)
+    presult = splitparse(parser, ctx)
+    @test !is_error(presult)
+    pok = unwrap(presult)
+    @test pok.consumed == ("abc",)
+    @test pok.next.buffer == ["--"]
+
+    val = splitcomplete(parser, pok.next.state)
+    @test (@? val) == "abc"
+
+    result = argparse(parser, ["--"])
+    @test is_error(result)
+    @test occursin("Expected", unwrap_error(result))
+end
+
 @testset "should be type stable" begin
     @test_opt argument(str(; pattern = r"\.(txt|md)$"))
     fileParser = argument(str(; pattern = r"\.(txt|md)$"))

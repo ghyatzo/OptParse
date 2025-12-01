@@ -40,6 +40,7 @@ using UUIDs:
 #	OK flag()
 #   OK argument()
 #	OK command()
+#   ? PassThrough()
 #	- parsers priority: command > argument > option > flag > constant
 
 
@@ -85,7 +86,7 @@ using UUIDs:
 #	- concat(), appends tuple parsers
 #	- longest-match(), tries all parses and selects the one with the longest match.
 #	- group(), documentation only combinator, adds a group label to parsers inside.
-#   - conditional(), check 0.7.1
+#   ? conditional(), check 0.7.1
 
 export argparse,
     # primitives

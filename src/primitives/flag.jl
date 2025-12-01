@@ -25,7 +25,7 @@ function parse(p::ArgFlag{Bool, FlagState}, ctx::Context{FlagState})::ParseResul
     #= When the input contains `--` stop parsing options =#
     if (ctx.buffer[1] === "--")
         next = Context(ctx.buffer[2:end], ctx.state, true)
-        return ParseOk(ctx.buffer[1:1], next)
+        return ParseOk(("--",), next)
     end
 
     if ctx.buffer[1] in p.names

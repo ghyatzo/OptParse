@@ -26,7 +26,7 @@ function parse(p::ArgOption{T, OptionState{T}}, ctx::Context{OptionState{T}})::P
     # When the input contains `--` is a signal to stop parsing options
     if (ctx.buffer[1] === "--")
         next = Context(ctx.buffer[2:end], ctx.state, true)
-        return ParseOk(ctx.buffer[1:1], next)
+        return ParseOk(("--",), next)
     end
 
     # when options are of the form `--option value` or `/O value`
@@ -37,7 +37,7 @@ function parse(p::ArgOption{T, OptionState{T}}, ctx::Context{OptionState{T}})::P
             return ParseErr(1, "$(ctx.buffer[1]) cannot be used multiple times")
         end
 
-        if length(ctx.buffer) < 2
+        if length(ctx.buffer) < 2 || ctx.buffer[2] == "--"
             return ParseErr(1, "Option $(ctx.buffer[1]) requires a value, but got no value.")
         end
 

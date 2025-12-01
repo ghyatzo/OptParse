@@ -11,7 +11,6 @@ end
     multipleParser = multiple(baseParser)
 
     res = argparse(multipleParser, ["-l", "en", "-l", "fr", "-l", "de"])
-    @info res
     @test !is_error(res)
 
     val = unwrap(res)

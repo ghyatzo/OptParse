@@ -196,17 +196,15 @@ end
     end
 end
 
-@testset "should propagate wrapped parser completion failures" begin
+@testset "should return success when the inner state fails to validate the matched input." begin
     baseParser = option(("--port", "-p"), integer(; min = 1))
     defaultParser = withDefault(baseParser, 8080)
 
     # Manually feed a failing completion state from the wrapped parser
     err::Result{tval(baseParser), String} = Err("Port must be >= 1")
     completeResult = splitcomplete(defaultParser, some(err))
-    @test is_error(completeResult)
-    if is_error(completeResult)
-        @test occursin("Port must be >= 1", string(unwrap_error(completeResult)))
-    end
+    @test !is_error(completeResult)
+    @test (@? completeResult) == 8080
 end
 
 @testset "should handle state transitions correctly" begin
@@ -308,6 +306,32 @@ end
     result = argparse(optionalopt, ["-n"])
     @test is_error(result)
     @test occursin("requires a value", unwrap_error(result))
+end
+
+@testset "should correctly handle -- edge cases" begin
+    def = withDefault(option("-n", "--name", str()), "bob")
+
+    result = argparse(def, ["--", "-n", "alice"])
+    @test is_error(result)
+    @test occursin("Unexpected", unwrap_error(result))
+
+    result = argparse(def, ["-n", "--"])
+    @test is_error(result)
+    @test occursin("value", unwrap_error(result))
+
+    result = argparse(def, ["--"])
+    @test !is_error(result)
+    @test (@? result) == "bob"
+
+    # should also correctly propagate the side effects properly optionsTerminated state.
+    ctx = Context(["--", "arg"], def.initialState)
+    pres = splitparse(def, ctx)
+    @test !is_error(pres)
+    pok = unwrap(pres)
+    @test pok.consumed == ("--",)
+    @test pok.next.optionsTerminated == true
+    @test pok.next.buffer == ["arg"]
+
 end
 
 

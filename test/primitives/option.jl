@@ -31,6 +31,26 @@ end
     @test ps.consumed == ("--port=8080",)
 end
 
+@testset "should handle option terminator edge cases correctly" begin
+    parser = option("--name", str())
+
+    result = argparse(parser, ["--", "--name", "lol"])
+    @test is_error(result)
+    @test occursin("No more options", unwrap_error(result))
+
+    result = argparse(parser, ["--"])
+    @test is_error(result)
+    @test occursin("Missing", unwrap_error(result))
+
+    result = argparse(parser, ["--name", "--"])
+    @test is_error(result)
+    @test occursin("value", unwrap_error(result))
+
+    result = argparse(parser, ["--name", "bob", "--"])
+    @test !is_error(result)
+    @test (@? result) == "bob"
+end
+
 # @testset "should parse DOS-style option with colon" begin
 #     parser  = option("/P", integer())
 #     context = Context(["/P:8080"], parser.initialState)
