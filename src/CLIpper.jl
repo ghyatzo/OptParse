@@ -110,6 +110,8 @@ export argparse,
     u32,
     u64,
     flt,
+    flt32,
+    flt64,
     uuid,
 
     # constructors
