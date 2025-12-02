@@ -92,6 +92,7 @@ export argparse,
     # primitives
     @constant,
     flag,
+    optflag,
     option,
     argument,
     command,
@@ -164,6 +165,16 @@ Base.getproperty(p::Parser, f::Symbol) = @unionsplit Base.getproperty(p, f)
 Base.hasproperty(p::Parser, f::Symbol) = @unionsplit Base.hasproperty(p, f)
 
 
+# modifiers
+optional(p::Parser) = _parser(ModOptional(p))
+
+
+withDefault(p::Parser, default) = _parser(ModWithDefault(p, default))
+withDefault(default) = (p::Parser) -> _parser(ModWithDefault(p, default))
+
+multiple(p::Parser; kw...) = _parser(ModMultiple(p; kw...))
+
+
 # primitives
 option(names::Tuple{Vararg{String}}, valparser::ValueParser{T}; kw...) where {T} =
     _parser(ArgOption(Tuple(names), valparser; kw...))
@@ -175,6 +186,7 @@ option(opt1::String, opt2::String, opt3::String, valparser::ValueParser{T}; kw..
     _parser(ArgOption((opt1, opt2, opt3), valparser; kw...))
 
 flag(names...; kw...) = _parser(ArgFlag(names; kw...))
+optflag(names...; kw...) = withDefault(flag(names...; kw...), false)
 
 macro constant(val)
     return :(_parser(ArgConstant($val)))
@@ -183,7 +195,6 @@ end
 argument(valparser::ValueParser{T}; kw...) where {T} = _parser(ArgArgument(valparser; kw...))
 
 command(name::String, p::Parser; kw...) = _parser(ArgCommand(name, p))
-
 
 
 # constructors
@@ -196,15 +207,6 @@ tup(parsers...; kw...) = _parser(ConstrTuple(parsers; kw...))
 tup(label::String, parsers...; kw...) = _parser(ConstrTuple(parsers; label, kw...))
 
 
-
-# modifiers
-optional(p::Parser) = _parser(ModOptional(p))
-
-
-withDefault(p::Parser, default) = _parser(ModWithDefault(p, default))
-withDefault(default) = (p::Parser) -> _parser(ModWithDefault(p, default))
-
-multiple(p::Parser; kw...) = _parser(ModMultiple(p; kw...))
 
 
 
