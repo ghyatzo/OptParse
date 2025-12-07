@@ -41,6 +41,29 @@ end
     @test getproperty(val, :id) == "item123"
 end
 
+@testset "should suport aliases (multiple names)" begin
+    showParser = command(
+        "show", "sh",
+        object(
+            (
+                type = @constant(:show),
+                progress = flag("-p", "--progress"),
+                id = argument(str()),
+            )
+        ),
+    )
+
+    res = argparse(showParser, ["sh", "--progress", "item123"])
+
+    @test !is_error(res)
+
+    # Value lives in next.state (Ok(...)); unwrap to get the parsed object
+    val = unwrap(res)
+    @test getproperty(val, :type) == Val(:show)
+    @test getproperty(val, :progress) == true
+    @test getproperty(val, :id) == "item123"
+end
+
 @testset "should fail when wrong subcommand is provided" begin
     showParser = command(
         "show",

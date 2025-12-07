@@ -718,7 +718,9 @@ julia> result.packages
 """
 function command end
 
-command(name::String, p::Parser; kw...) = _parser(ArgCommand(name, p; kw...))
+command(names::Tuple{Vararg{String}}, p::Parser; kw...) = _parser(ArgCommand(name, p; kw...))
+command(name::String, p::Parser; kw...) = _parser(ArgCommand((name,), p; kw...))
+command(name::String, alias::String, p::Parser; kw...) = _parser(ArgCommand((name, alias), p; kw...))
 
 
 # constructors

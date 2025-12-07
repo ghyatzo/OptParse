@@ -5,30 +5,28 @@ struct ArgCommand{T, S, _p, P} <: AbstractParser{T, S, _p, P}
     initialState::S
     parser::P
     #
-    name::String
+    names::Vector{String}
     brief::String
     help::String
     footer::String
 
-    ArgCommand(name, parser::P; brief = "", help = "", footer = "") where {P} =
-        new{tval(P), CommandState{tstate(P)}, 15, P}(none(Option{tstate(P)}), parser, name, brief, help, footer)
+    ArgCommand(names::Tuple{Vararg{String}}, parser::P; brief = "", help = "", footer = "") where {P} =
+        new{tval(P), CommandState{tstate(P)}, 15, P}(none(Option{tstate(P)}), parser, [names...], brief, help, footer)
 end
-
-# parse(p::ArgCommand, ctx)::ParseResult{String,String} = ParseErr(0, "Invalid command state. (YOU REACHED AN UNREACHABLE).")
 
 
 function parse(p::ArgCommand{T, CommandState{PState}}, ctx::Context{CommandState{PState}})::ParseResult{CommandState{PState}, String} where {T, PState}
     if is_error(ctx.state)
         # command not yet matched
         # check if it starts with our command name
-        if length(ctx.buffer) < 1 || ctx.buffer[1] != p.name
+        if length(ctx.buffer) < 1 || ctx.buffer[1] ∉ p.names
             actual = length(ctx.buffer) > 0 ? ctx.buffer[1] : nothing
 
             if actual === nothing
-                return ParseErr(0, "Expected command `$(p.name)`, but got end of input.")
+                return ParseErr(0, "Expected command `$(p.names[1])`, but got end of input.")
             end
 
-            return ParseErr(0, "Expected command `$(p.name)`, but got `$actual`.")
+            return ParseErr(0, "Expected command `$(p.names[1])`, but got `$actual`.")
         end
 
         # command matched, consume it and move to the matched state
@@ -87,7 +85,7 @@ function complete(p::ArgCommand{T, CommandState{PState}}, maybemaybestate::Comma
 
     if is_error(maybemaybestate)
         # command never matched
-        return Err("Command $(p.name) was not matched")
+        return Err("Command $(p.names[1]) was not matched")
     else
         maybestate = unwrap(maybemaybestate)
         if is_error(maybestate)
