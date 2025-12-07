@@ -9,8 +9,8 @@ struct ArgFlag{T, S, p, P} <: AbstractParser{T, S, p, P}
     description::String
 
 
-    ArgFlag(names::Tuple{Vararg{String}}; description = "") =
-        new{Bool, FlagState, 9, Nothing}(Err("Missing Flag(s) $(names)."), nothing, [names...], description)
+    ArgFlag(names::Tuple{Vararg{String}}; desc = "") =
+        new{Bool, FlagState, 9, Nothing}(Err("Missing Flag(s) $(names)."), nothing, [names...], desc)
 end
 
 

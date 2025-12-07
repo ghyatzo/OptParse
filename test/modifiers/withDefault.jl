@@ -202,7 +202,7 @@ end
 
     completeResult = argparse(defaultParser, ["-p", "10"])
     @test is_error(completeResult)
-    @test occursin("at least", unwrap_error(completeResult))
+    @test occursin("is below", unwrap_error(completeResult))
 end
 
 @testset "should handle state transitions correctly" begin

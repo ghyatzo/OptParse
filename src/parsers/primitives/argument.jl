@@ -8,8 +8,8 @@ struct ArgArgument{T, S, p, P} <: AbstractParser{T, S, p, P}
     description::String
 
 
-    ArgArgument(valparser::ValueParser{T}; description = "") where {T} =
-        new{T, ArgumentState{T}, 5, Nothing}(none(Result{T, String}), nothing, valparser, description)
+    ArgArgument(valparser::ValueParser{T}; desc = "") where {T} =
+        new{T, ArgumentState{T}, 5, Nothing}(none(Result{T, String}), nothing, valparser, desc)
 end
 
 function parse(p::ArgArgument{T, ArgumentState{S}}, ctx::Context{ArgumentState{S}})::ParseResult{ArgumentState{S}, String} where {T, S}
@@ -41,7 +41,7 @@ function parse(p::ArgArgument{T, ArgumentState{S}}, ctx::Context{ArgumentState{S
     if !is_error(ctx.state)
         #=The state is a some, so this parser matched already with something.
         Add one to the consumed since we're technically consuming this duplicate=#
-        return ParseErr(1+i, "The argument `$(metavar(p.valparser))` cannot be used multiple times.")
+        return ParseErr(1 + i, "The argument `$(metavar(p.valparser))` cannot be used multiple times.")
     end
 
     result = p.valparser(ctx.buffer[1 + i])::Result{T, String}
@@ -67,4 +67,3 @@ function complete(p::ArgArgument{T, <:ArgumentState}, maybest::TState)::Result{T
 
     return st
 end
-
